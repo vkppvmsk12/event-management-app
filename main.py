@@ -1,6 +1,7 @@
 # Parameters: location, date, time, parking, meal times.
 from os import path
 from json import dump
+from chatbot import openai, get_response
 
 if not path.exists('.json'):
     event_info={}
@@ -20,8 +21,23 @@ if not path.exists('.json'):
 
     for key in event_info:
         if event_info[key] == '':
-            event_info[key] = None
+            event_info[key]=None
 
     print(event_info)
-    with open('files/.json', 'w') as JSON:
+
+    with open('.json', 'w') as JSON:
         dump(event_info, JSON)
+
+print('Hello, I will be your AI assistant today.')
+print('Feel free to ask me any questions about the event that you\'re attending.\n')
+while True:
+    with open('.json', 'r') as JSON:
+        text = ' '.join(line.rstrip() for line in JSON)
+    user_input=input('User: ')
+    if user_input.lower() in ['exit', 'quit']: print('Bye'); break
+    refined_input=f'''{user_input}\n\nRefer to this .json file:\n\n{text}\n
+    Answer me as if I was someone attending the event. 
+    Only give the answer to the question that was asked. Don't include any other parameters.'''
+    response=get_response(refined_input)
+    print('Chatbot:',response)
+    print('')
