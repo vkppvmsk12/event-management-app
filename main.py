@@ -46,8 +46,14 @@ while True:
 
                 break
             else:
+
                 with open ('.json', 'r') as JSON:
                     event_info = load(JSON)
+                stored_info_prompt=f'''{event_info}\n\nRemember the data inside the JSON string. 
+                You will be asked information about it. It may change in the future.'''
+                stored_info_response=get_response(stored_info_prompt)
+                store_message(stored_info_prompt, stored_info_response)
+
                 print('Good, your event is already organized.\n')
                 get_details()
                 change='change'
@@ -59,7 +65,6 @@ while True:
                         get_details()
                 
                 print('Thanks for the info. Your event has been updated.')
-                #stored_info=f'{event_info}\n\n'
                 break
 
         case 'attendee':
@@ -73,10 +78,7 @@ while True:
                 if user_input.lower() in ['exit', 'quit']: 
                     print('Bye')
                     quit()
-                refined_prompt=f'''{user_input}\n\nRefer to this .json file:\n\n{text}\n
-                Answer me as if I was someone attending the event. 
-                Only give the answer to the question that was asked. Don't include any other parameters.'''
-                response=get_response(refined_prompt)
+                response=get_response(user_input)
                 print('Chatbot:',response)
                 print()
                 store_message(user_input, response)
