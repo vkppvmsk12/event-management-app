@@ -1,7 +1,7 @@
 # Parameters: location, date, time, parking, meal times.
 from os import path
 from json import dump, load
-from chatbot import openai, get_response, store_message, conversation_history
+from chatbot import api_key, get_response, store_message, conversation_history
 
 def get_info():
     global event_info
@@ -49,7 +49,10 @@ while True:
 
                 with open ('.json', 'r') as JSON:
                     event_info = load(JSON)
-                stored_info_prompt=f'''{event_info}\n\nRemember the data inside the JSON string. 
+                stored_info_prompt=f'''{event_info}
+                
+                Please emember the data inside the JSON string.
+                My company depends on you to do the job right. 
                 You will be asked information about it. It may change in the future.'''
                 stored_info_response=get_response(stored_info_prompt)
                 store_message(stored_info_prompt, stored_info_response)

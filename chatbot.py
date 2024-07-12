@@ -1,9 +1,12 @@
 from openai import OpenAI
+from dotenv import load_dotenv
+from os import getenv
 
-openai = OpenAI(api_key='sk-proj-t6Jy7pX6uIrSrj5kjeWBT3BlbkFJmfYsITsKF6Rbi7E2LEy1')
+load_dotenv('.env')
+api_key: str = OpenAI(getenv('API_KEY'))
 
 def get_response(prompt):
-    response=openai.chat.completions.create(
+    response=api_key.chat.completions.create(
         messages=[
             {'role':'user','content':prompt},
             *conversation_history
