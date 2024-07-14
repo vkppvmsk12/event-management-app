@@ -59,8 +59,7 @@ def get_info():
     if not agenda.lower()=='same':event_info['agenda']=agenda
 
     for key in event_info:
-        if event_info[key]=='':
-            event_info[key]=None
+        if event_info[key]=='': event_info[key]=None
     
     global conversation_history
     
