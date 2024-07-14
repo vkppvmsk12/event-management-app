@@ -120,20 +120,26 @@ while True:
                 print('Hello, I will be your AI assistant today.')
                 print('Feel free to ask me any questions about the event that you\'re attending.')
                 print('If you want to stop talking to me, just enter \'exit\' or \'quit\'.\n')
-                conversation_history.append({
+                conversation_history.append(
+                    {
                     'role':'user', 
                     'content':'If you are asked when, give date and time if provided.'
-                })
+                    }
+                )
 
                 while True:
                     user_input=input('''User: ''')
                     if user_input.lower() in ['exit', 'quit']: 
                         print('Bye')
                         quit()
-                    user_input+='\nGive an answer in maximum 1 line.'
-                    response=get_response(user_input)
+                    refined_input=f'''Act as an event organizer and provide an 
+                    answer to the question based on the JSON file. 
+                    Include all details while answering the question,
+                    but don't make the answer too long by inlcuding
+                    unnecessary details. Do you understand?\n\n{user_input}'''
+                    response=get_response(refined_input)
                     print('Chatbot:', response, '\n')
-                    store_message(user_input, response)
+                    store_message(refined_input, response)
 
         case _:
             print('Please answer with either \'attendee\' or \'organizer\'.\n')
