@@ -1,11 +1,32 @@
-from os import path, remove
+from os import path, remove, getenv
 from json import dump, load
-from chatbot import api_key, get_response, store_message
+from openai import OpenAI
+from dotenv import load_dotenv
 
-conversation_history = []
-with open('.json', 'r') as JSON:
-    if path.exists('.json'):
-        conversation_history=[{'role':'user','content':load(JSON)}]
+load_dotenv('.env')
+api: str = OpenAI(api_key=getenv('API_KEY'))
+
+conversation_history = [
+    {'role':'user','content':'I am an attendee at the event. Your job is tot give me info about the event.'}
+]
+
+def get_response(prompt):
+    response=api.chat.completions.create(
+        messages=[
+            *conversation_history,
+            {'role':'user','content':prompt}
+        ],
+        model='gpt-3.5-turbo',
+        temperature=0.7
+    )
+
+    return response.choices[0].message.content.strip()
+
+def store_message(user_input, response):
+    conversation_history.extend([
+        {'role':'user','content':user_input},
+        {'role':'system','content':response}
+    ])
 
 def get_info():
     global event_info
@@ -15,19 +36,27 @@ def get_info():
     
     print('I will ask you some questions about the event. If an answer isn\'t applicable, press enter.')
     print('If you want to keep any of the options the same, enter \'same\'.\n')
-    event_name=input(f'What do you want to name the event? ')
-    location=input(f'\nWhat is the location of the event? ')
-    date=input(f'\nWhat are the days that the event is taking place? ')
-    time=input(f'\nWhat time is the event taking place? ')
-    parking=input(f'\nWhere is the parking available? ')
-    food_options=input(f'\nAre there any food options for the event? If so, list a few of them. ')
+    event_name=input('What do you want to name the event? ')
+    event_desctiption=input('\nCan you provide a description of the event? ')
+    location=input('\nWhat is the location of the event? ')
+    date=input('\nWhat are the days that the event is taking place? ')
+    time=input('\nWhat time is the event taking place? ')
+    parking=input('\nWhere is the parking available? ')
+    food_options=input('\nAre there any food options for the event? ')
+    seating=input('\nAre there any specific seats for this event? ')
+    wifi_info=input('\nWhat\'s the Wi-fi information for the venue? ')
+    agenda=input('\nWhat\'s on the agenda for the event? ')
 
     if not event_name.lower()=='same':event_info['event name']=event_name
+    if not event_desctiption.lower()=='same':event_info['event description']=event_desctiption
     if not location.lower()=='same':event_info['location']=location
     if not date.lower()=='same':event_info['date']=date 
     if not time.lower()=='same':event_info['time']=time
     if not parking.lower()=='same':event_info['parking']=parking
-    if not food_options.lower()=='same':event_info['food options']=food_options.split(', ')
+    if not food_options.lower()=='same':event_info['food options']=food_options
+    if not seating.lower()=='same':event_info['seating']=seating
+    if not wifi_info.lower()=='same':event_info['wifi inforamtion']=wifi_info
+    if not agenda.lower()=='same':event_info['agenda']=agenda
 
     for key in event_info:
         if event_info[key]=='':
@@ -37,7 +66,9 @@ def get_info():
     
     with open('.json', 'w') as JSON:
         dump(event_info, JSON)
-        conversation_history=[{'role':'user','content':load(JSON)}]
+        
+    with open('.json', 'r') as JSON:
+        conversation_history=[{'role':'user','content':str(load(JSON))}]
 
 def get_details():
     print('Here are the details:')
@@ -47,11 +78,15 @@ def get_details():
 def change_event():
     change='change'
     while change.lower()=='change':
-        change=input('\nIf you want to change the details, type \'change\'. Press enter to continue.\n')
+        change=input('\nIf you want to change the details, type \'change\'. Otherwise, press enter to continue.\n')
         if change.lower()=='change':
             get_info()
             print('Thanks for the info. Your event has been updated.')
             get_details()
+
+with open('.json', 'r') as JSON:
+    if path.exists('.json'):
+        conversation_history=[{'role':'user','content':str(load(JSON))}]
 
 while True:
     role=input('Are you an event organizer or an attendee? Answer with attendee/organizer.\n')
@@ -64,25 +99,17 @@ while True:
                 get_details()
                 change_event()
                 break
+
             else:
+                with open ('.json', 'r') as JSON:
+                    event_info = load(JSON)
+
+                print('Good, your event is already organized.\n')
                 delete=input('Do you want to delete your event? Enter \'yes\' to delete. Otherwise, press enter to continue.\n')
                 if delete.lower()=='yes':remove('.json')
 
-                with open ('.json', 'r') as JSON:
-                    event_info = load(JSON)
-                stored_info_prompt=f'''{event_info}
-                
-                Please remember the data inside the JSON string.
-                My company depends on you to do the job right. 
-                You will be asked information about it. It may change in the future.'''
-                stored_info_response=get_response(stored_info_prompt)
-                store_message(stored_info_prompt, stored_info_response)
-
-                print('Good, your event is already organized.\n')
                 get_details()
                 change_event()
-                
-                print('Thanks for the info. Your event has been updated.')
                 break
 
         case 'attendee':
@@ -93,16 +120,19 @@ while True:
                 print('Hello, I will be your AI assistant today.')
                 print('Feel free to ask me any questions about the event that you\'re attending.')
                 print('If you want to stop talking to me, just enter \'exit\' or \'quit\'.\n')
+                conversation_history.append({
+                    'role':'user', 
+                    'content':'If you are asked when, give date and time if provided.'
+                })
+
                 while True:
-                    with open('.json', 'r') as JSON:
-                        text = ' '.join(line.rstrip() for line in JSON)
-                    user_input=input('User: ')
+                    user_input=input('''User: ''')
                     if user_input.lower() in ['exit', 'quit']: 
                         print('Bye')
                         quit()
+                    user_input+='\nGive an answer in maximum 1 line.'
                     response=get_response(user_input)
-                    print('Chatbot:',response)
-                    print()
+                    print('Chatbot:', response, '\n')
                     store_message(user_input, response)
 
         case _:

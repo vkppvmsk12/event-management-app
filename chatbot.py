@@ -15,14 +15,13 @@ def get_response(prompt):
         temperature=0.7
     )
 
-    return response.choices[0].message.content
+    return response.choices[0].message.content.strip()
 
 conversation_history = []
 
 def store_message(user_input, response):
     conversation_history.extend([{'role':'user','content':user_input}, 
-                                 {'role':'user','content':response}])
-
+                                 {'role':'system','content':response}])
 if __name__ == '__main__':
     while True:
         user_input=input('User: ')
