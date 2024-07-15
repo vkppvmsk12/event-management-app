@@ -31,17 +31,18 @@ def store_message(user_input, response):
 def get_info():
     global event_info
     event_info={}
-    with open('.json', 'r') as JSON:
-        if path.exists('.json'): event_info=load(JSON)
+    if path.exists('.json'):
+        with open('.json', 'r') as JSON:
+            event_info=load(JSON)
     
-    print('I will ask you some questions about the event. If an answer isn\'t applicable, press enter.')
+    print('\nI will ask you some questions about the event. If an answer isn\'t applicable, press enter.')
     print('If you want to keep any of the options the same, enter \'same\'.\n')
     event_name=input('What do you want to name the event? ')
     event_desctiption=input('\nCan you provide a description of the event? ')
     location=input('\nWhat is the location of the event? ')
     date=input('\nWhat are the days that the event is taking place? ')
     time=input('\nWhat time is the event taking place? ')
-    parking=input('\nWhere is the parking available? ')
+    parking=input('\nIs there any parking available? If so where? ')
     food_options=input('\nAre there any food options for the event? ')
     seating=input('\nAre there any specific seats for this event? ')
     wifi_info=input('\nWhat\'s the Wi-fi information for the venue? ')
@@ -83,8 +84,8 @@ def change_event():
             print('Thanks for the info. Your event has been updated.')
             get_details()
 
-with open('.json', 'r') as JSON:
-    if path.exists('.json'):
+if path.exists('.json'):
+    with open('.json', 'r') as JSON:
         conversation_history=[{'role':'user','content':str(load(JSON))}]
 
 while True:
@@ -93,6 +94,8 @@ while True:
     match role.lower():
         case 'organizer':
             if not path.exists('.json'):
+                create_event=input('Do you want to create an event? Enter \'yes\' to create event. Otherwise press enter to exit program.\n')
+                if not create_event=='yes':quit()
                 get_info()
                 print('Thanks for the info. Your event has been organized.\n')
                 get_details()
@@ -105,7 +108,10 @@ while True:
 
                 print('Good, your event is already organized.\n')
                 delete=input('Do you want to delete your event? Enter \'yes\' to delete. Otherwise, press enter to continue.\n')
-                if delete.lower()=='yes':remove('.json')
+                if delete.lower()=='yes':
+                    remove('.json')
+                    print('Your event has been deleted')
+                    quit()
 
                 get_details()
                 change_event()
