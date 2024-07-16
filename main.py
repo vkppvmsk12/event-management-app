@@ -2,9 +2,14 @@ from os import path, remove, getenv
 from json import dump, load
 from openai import OpenAI
 from dotenv import load_dotenv
+import pymongo
 
 load_dotenv('.env')
 api: str = OpenAI(api_key=getenv('API_KEY'))
+
+client = pymongo.MongoClient('mongodb://localhost:27017')
+db=client['db']
+events=db['events']
 
 conversation_history = [
     {'role':'user','content':'I am an attendee at the event. Your job is tot give me info about the event.'}
@@ -31,6 +36,7 @@ def store_message(user_input, response):
 def get_info():
     global event_info
     event_info={}
+
     if path.exists('.json'):
         with open('.json', 'r') as JSON:
             event_info=load(JSON)
@@ -69,11 +75,14 @@ def get_info():
         
     with open('.json', 'r') as JSON:
         conversation_history=[{'role':'user','content':str(load(JSON))}]
+    
+        events.drop()
+        events.insert_one(event_info)
 
 def get_details():
     print('Here are the details:')
     for key in event_info:
-        print(f'{key}: {event_info[key]}')
+        if key!='_id':print(f'{key}: {event_info[key]}')
 
 def change_event():
     change='change'
@@ -84,9 +93,8 @@ def change_event():
             print('Thanks for the info. Your event has been updated.')
             get_details()
 
-if path.exists('.json'):
-    with open('.json', 'r') as JSON:
-        conversation_history=[{'role':'user','content':str(load(JSON))}]
+if events.count_documents({}):
+    conversation_history=[{'role':'user','content':str(events.find_one())}]
 
 role = ''
 while not (role.lower() in ['attendee', 'organizer']):
@@ -98,7 +106,7 @@ while not (role.lower() in ['attendee', 'organizer']):
 else:
     match role.lower():
         case 'organizer':
-            if not path.exists('.json'):
+            if not events.count_documents({}):
                 create_event=input('Do you want to create an event? Enter \'yes\' to create event. Otherwise press enter to exit program.\n')
                 if not create_event=='yes':quit()
                 get_info()
