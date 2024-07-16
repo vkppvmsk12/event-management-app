@@ -88,9 +88,14 @@ if path.exists('.json'):
     with open('.json', 'r') as JSON:
         conversation_history=[{'role':'user','content':str(load(JSON))}]
 
-while True:
+role = ''
+while not (role.lower() in ['attendee', 'organizer']):
     role=input('Are you an event organizer or an attendee? Answer with attendee/organizer.\n')
     print()
+    if not (role in ['attendee', 'organizer']): 
+        print('Please answer with either \'attendee\' or \'organizer\'.\n')
+
+else:
     match role.lower():
         case 'organizer':
             if not path.exists('.json'):
@@ -100,8 +105,6 @@ while True:
                 print('Thanks for the info. Your event has been organized.\n')
                 get_details()
                 change_event()
-                break
-
             else:
                 with open ('.json', 'r') as JSON:
                     event_info = load(JSON)
@@ -115,12 +118,10 @@ while True:
 
                 get_details()
                 change_event()
-                break
 
         case 'attendee':
             if not path.exists('.json'):
                 print('There aren\'t any events planned for you yet.')
-                break
             else:
                 print('Hello, I will be your AI assistant today.')
                 print('Feel free to ask me any questions about the event that you\'re attending.')
@@ -144,7 +145,4 @@ while True:
                     unnecessary details. Do you understand?\n\n{user_input}'''
                     response=get_response(refined_input)
                     print('Chatbot:', response, '\n')
-                    store_message(refined_input, response)
-
-        case _:
-            print('Please answer with either \'attendee\' or \'organizer\'.\n')
+                    store_message(refined_input, response)            
