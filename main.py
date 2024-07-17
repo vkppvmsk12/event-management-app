@@ -36,10 +36,6 @@ def store_message(user_input, response):
 def get_info():
     global event_info
     event_info={}
-
-    if path.exists('.json'):
-        with open('.json', 'r') as JSON:
-            event_info=load(JSON)
     
     print('\nI will ask you some questions about the event. If an answer isn\'t applicable, press enter.')
     print('If you want to keep any of the options the same, enter \'same\'.\n')
@@ -69,15 +65,9 @@ def get_info():
         if event_info[key]=='': event_info[key]=None
     
     global conversation_history
-    
-    with open('.json', 'w') as JSON:
-        dump(event_info, JSON)
-        
-    with open('.json', 'r') as JSON:
-        conversation_history=[{'role':'user','content':str(load(JSON))}]
-    
-        events.drop()
-        events.insert_one(event_info)
+ 
+    events.drop()
+    events.insert_one(event_info)
 
 def get_details():
     print('Here are the details:')
@@ -92,9 +82,6 @@ def change_event():
             get_info()
             print('Thanks for the info. Your event has been updated.')
             get_details()
-
-if events.count_documents({}):
-    conversation_history=[{'role':'user','content':str(events.find_one())}]
 
 role = ''
 while not (role.lower() in ['attendee', 'organizer']):
@@ -114,13 +101,12 @@ else:
                 get_details()
                 change_event()
             else:
-                with open ('.json', 'r') as JSON:
-                    event_info = load(JSON)
+                event_info = events.find_one()
 
                 print('Good, your event is already organized.\n')
                 delete=input('Do you want to delete your event? Enter \'yes\' to delete. Otherwise, press enter to continue.\n')
                 if delete.lower()=='yes':
-                    remove('.json')
+                    events.drop()
                     print('Your event has been deleted')
                     quit()
 
@@ -128,7 +114,7 @@ else:
                 change_event()
 
         case 'attendee':
-            if not path.exists('.json'):
+            if not events.count_documents({}):
                 print('There aren\'t any events planned for you yet.')
             else:
                 print('Hello, I will be your AI assistant today.')
@@ -140,6 +126,11 @@ else:
                     'content':'If you are asked when, give date and time if provided.'
                     }
                 )
+                
+                if events.count_documents({}): 
+                    conversation_history = [
+                        {'role':'user','content':str(events.find_one())}
+                    ]
 
                 while True:
                     user_input=input('''User: ''')
@@ -147,10 +138,10 @@ else:
                         print('Bye')
                         quit()
                     refined_input=f'''Act as an event organizer and provide an 
-                    answer to the question based on the JSON file. 
+                    answer to the question based on the MongoDB database. 
                     Include all details while answering the question,
                     but don't make the answer too long by inlcuding
                     unnecessary details. Do you understand?\n\n{user_input}'''
                     response=get_response(refined_input)
                     print('Chatbot:', response, '\n')
-                    store_message(refined_input, response)            
+                    store_message(refined_input, response)
