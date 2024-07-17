@@ -34,7 +34,6 @@ def store_message(user_input, response):
     ])
 
 def get_info():
-    global event_info
     event_info={}
     
     print('\nI will ask you some questions about the event. If an answer isn\'t applicable, press enter.')
@@ -71,8 +70,8 @@ def get_info():
 
 def get_details():
     print('Here are the details:')
-    for key in event_info:
-        if key!='_id':print(f'{key}: {event_info[key]}')
+    for key in events.find_one():
+        if key!='_id':print(f'{key}: {events.find_one()[key]}')
 
 def change_event():
     change='change'
@@ -102,8 +101,6 @@ else:
                 get_details()
                 change_event()
             else:
-                event_info = events.find_one()
-
                 print('Good, your event is already organized.\n')
                 delete=input('Do you want to delete your event? Enter \'yes\' to delete. Otherwise, press enter to continue.\n')
                 if delete.lower()=='yes':
