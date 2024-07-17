@@ -99,6 +99,7 @@ else:
     match role.lower():
         case 'organizer':
             if not path.exists('.json'):
+                print('You don\'t have any events planned yet.')
                 create_event=input('Do you want to create an event? Enter \'yes\' to create event. Otherwise press enter to exit program.\n')
                 if not create_event=='yes':quit()
                 get_info()
