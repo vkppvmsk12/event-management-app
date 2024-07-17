@@ -82,6 +82,12 @@ def change_event():
             print('Thanks for the info. Your event has been updated.')
             get_details()
 
+def create_event():
+    get_info()
+    print('Thanks for the info. Your event has been organized.\n')
+    get_details()
+    change_event()
+
 role = ''
 while not (role.lower() in ['attendee', 'organizer']):
     role=input('Are you an event organizer or an attendee? Answer with attendee/organizer.\n')
@@ -95,11 +101,8 @@ else:
             if not events.count_documents({}):
                 print('You don\'t have any events planned yet.')
                 create_event=input('Do you want to create an event? Enter \'yes\' to create event. Otherwise press enter to exit program.\n')
-                if not create_event=='yes':quit()
-                get_info()
-                print('Thanks for the info. Your event has been organized.\n')
-                get_details()
-                change_event()
+                if not (create_event=='yes'):quit()
+                create_event()
             else:
                 print('Good, your event is already organized.\n')
                 delete=input('Do you want to delete your event? Enter \'yes\' to delete. Otherwise, press enter to continue.\n')
