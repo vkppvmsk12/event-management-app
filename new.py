@@ -35,12 +35,10 @@ def iterate_questions(questions):
         return event_questions
     except json.decoder.JSONDecodeError:
         print('Sorry, something went wrong, please try again.')
-        quit()
 
 def create_event():
     event_questions={}
     event={}
-
     while True:
         prompt=f'''
     We are organizing an event and we would like to get the following details from the organizer:
@@ -92,8 +90,8 @@ def create_event():
 
     {'''{
     "event": {
-        "name": "xyz",
-        "description": "abc",
+        "event name": "xyz",
+        "event description": "abc",
         "location": "",
         "date": "",
         "parking": "",
@@ -119,3 +117,28 @@ def create_event():
         break
 
     events.insert_one(event)
+
+def delete_event(event_name):
+    prompt=f'''
+We want to delete an event from a MongoDB database. 
+Here's the name of the event we want to delete: {event_name}
+
+Can you generate a query in JSON object format to delete the event where the key is 'event name' and the 
+value is the name of the event provided? e.g. If the event name is 'abc', your answer should be '{'{"event name":"abc"}'}'
+
+Avoid including ```json``` or any other text that could give an error while parsing.
+The output should be a valid parsable JSON object.
+'''
+    
+    response=get_response(prompt)
+    print(response)
+    try:
+        query=json.loads(response)
+    except json.decoder.JSONDecodeError:
+        print('Sorry something went wrong. Please try again.')
+    
+    print(query)
+    result=events.delete_one(query)
+    
+    if result.deleted_count: return 'The event was succesfully deleted.'
+    return 'Sorry, no event with that name found.'
