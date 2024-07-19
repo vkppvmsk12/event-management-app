@@ -11,7 +11,7 @@ def get_response(prompt):
     response=api.chat.completions.create(
         messages=[*conversation_history,{'role':'user','content':prompt}],
         model='gpt-4o',
-        temperature=0.7
+        temperature=0.2
     )
     return response.choices[0].message.content.strip()
 
@@ -22,25 +22,22 @@ def store_message(user_input, response):
 
 event_info={}
 
-def iterate_questions(prompt):
+def iterate_questions(questions):
+    event_questions=[]
     try:
-        response=get_response(prompt)
-        for question in json.loads(response):
+        for question in questions:
             ans=input(question)
             if ans.lower()=='skip':ans=None
-            event_info[question]=ans
+            event_questions.append({'question':question,'answer':ans})
+        return event_questions
     except json.decoder.JSONDecodeError:
         print('Sorry, something went wrong, please try again.')
-        print(response)
         quit()
 
 prompt='''
 We are organizing an event and we would like to get the following details from the organizer:
-    
-    - Mandatory details: event name, event description, location, date, start time, end time, 
-      the schedule of the event, the contact information of the organizer.
-
-    - Optional details: parking location, food options, seating, wifi info of the venue.
+    - Mandatory details: event name, event description, location, date
+    - Optional details: parking location, food options, seating
 
 The questions should meet the following criteria:
     1. The questions should be short and concise
@@ -52,63 +49,86 @@ The questions should meet the following criteria:
        ask 'What date is the event happening?' instead of asking 'When is the event?'
     6. There should be a space after the question i.e. '...? ' instead of '...?'
     7. There shouldn't be any duplicate question. Include each question only once
-    8. The questions should all be in a JSON array in vector form. Avoid nested objects.
-    9. Avoid using '```json```' or any other text besides the JSON array. 
-       That gives me an error while parsing.
 
-e.g. :
-    [
-        "What do you want to name the event? ", 
-        "Where is parking available? (Enter Skip if not applicable) "
-    ]
+Provide the list of questions back to me in a JSON array in vector form. Avoid nested objects.
+Avoid using '```json```' or any other text besides the JSON array. 
+Make sure the response is a valid JSON list with no parsing errors.
+
+Example of a valid JSON list response:
+[
+    "What do you want to name the event? ", 
+    "Where is parking available? (Enter Skip if not applicable) "
+]
 '''
 
-iterate_questions(prompt)
+response=get_response(prompt)
+event_questions=iterate_questions(json.loads(response))
+event={}
 
 while True:
-    print('\nPlease include more details for the following questions:')
     prompt2=f'''
-Here's the information that we got from the organizer:
+We are organizing an event and we would like to get the following details from the organizer:
+    - Mandatory details: event name, event description, location, date
+    - Optional details: parking, food options, seating
 
-{event_info}
-
-Recheck from my previous prompt which details are mandatory and which are optional.
+The following questions and answers are already available in JSON list format:
+{json.dumps(event_questions, indent=4)}
 
 Make sure that all mandatory details are filled in and not empty.
-Also make sure that all mandatory details are complete and no information is missing.
-e.g. Schedule isn't complete
-
 It's okay if the optional details aren't present.
 
-If all information from the mandatory fields is complete and no information is missing, then give me a 
-JSON object with all the event details. It doesn't matter if the optional fields are empty.
+The following 'event' JSON object is already built:
+{json.dumps(event, indent=4)}
+
+Update the above 'event' JSON object with all the details populated from the answers.
+It doesn't matter if the optional fields are empty.
 
 The object should meet the following criteria:
-    1. The keys should be the parameters specified e.g. "date", "time", "location", etc.
+    1. The keys should be the specified parameters: 'event name', 'event description', ... (The ones mentioned earlier).
     2. Avoid nested objects.
-    3. If certain optional details are not provided, the value should be null.
-    4. No mandatory detail e.g. date, location, etc. may have the value null.
-    5. Use the following keys in order: event name, event description, location, start time,
-       end time, schedule, contact information, parking, food options, seating, wifi.
+    3. If certain optional details aren't provided, the value should be null.
+    4. A mandatory detail (date, location, etc) may not have the value null.
+    
+    e.g. {'{"date":"8 September 2024","time":"4PM - 7PM"}'}
 
-    e.g. {'{'}"date":"8 September 2024","time":"4PM - 7PM"{'}'}
-
-If not all information from the mandatory fields is present or complete, give me a JSON array in vector form of 
-all questions where extra details must be provided. Don't ask me questions if the details are already complete.
+If not all information from the mandatory fields is present or complete, build a 'questions' JSON array 
+in vector form of all questions where extra details must be provided. 
+Don't ask me questions if the details are already complete.
 
 The array should meet the following criteria:
     1. The array must be in vector form. Avoid nested arrays.
-    2. The questions must be exactly the same as the ones from your previous response
-       so that I can overwrite the previous questions in my dictionary. 
-       Don't forget the space after the question mark
-    3. Don't include questions for optional details e.g. parking, wifi information, etc.
+    3. Don't include questions for optional details e.g. parking, seating, etc.
     4. Don't include ```json``` or any other text besides the JSON array. 
-       That gives me an error while parsing.
-'''
-    #if type(json.loads(get_response(prompt2))) != dict: iterate_questions(prompt2)
-    #else: break
-    print(prompt2)
-    print(get_response(prompt2))
-    break
+       Make sure the response is a valid JSON array with no parsing errors.
 
-#print(json.loads(get_response(prompt2)))
+Return a JSON object containing the 'event' JSON object and the 'questions' JSON array.
+
+Example: 
+
+{'''{
+  "event": {
+    "name": "xyz",
+    "description": "abc",
+    "location": "",
+    "date": "",
+    "parking": null,
+    "food options": null,
+    "seating": "seat 3A"
+  },
+  "questions": [
+    "What is the location of the event? ",
+    "What date is the event happening? "
+  ]
+}'''}    
+'''
+    
+    response=get_response(prompt2)
+    print(response)
+    response_object=json.loads(response)
+    event=response_object['event']
+
+    if len(response_object.get('questions', [])) >0: 
+        print('\nPlease include more details for the following questions:')
+        event_questions=iterate_questions(response_object['questions'])
+        continue
+    break
