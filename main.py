@@ -15,6 +15,9 @@ conversation_history = [
     {'role':'user','content':'I am an attendee at the event. Your job is tot give me info about the event.'}
 ]
 
+change='change'
+access=''
+
 def get_response(prompt):
     response=api.chat.completions.create(
         messages=[
@@ -34,7 +37,8 @@ def store_message(user_input, response):
     ])
 
 def get_info():
-    event_info={}
+    global access
+    event_info=events.find_one({'password':access})
     
     print('\nI will ask you some questions about the event. If an answer isn\'t applicable, press enter.')
     print('If you want to keep any of the options the same, enter \'same\'.\n')
@@ -48,6 +52,9 @@ def get_info():
     seating=input('\nAre there any specific seats for this event? ')
     wifi_info=input('\nWhat\'s the Wi-fi information for the venue? ')
     agenda=input('\nWhat\'s on the agenda for the event? ')
+    contact_organizer=input('\nHow can the attendees of the event contact you if necessary? ')
+    password=input('''\nCan you provide a password that the attendees can use to access the event details of the event? 
+The password may not be \'same\', and it may not match any other password. ''')
 
     if not event_name.lower()=='same':event_info['event name']=event_name
     if not event_desctiption.lower()=='same':event_info['event description']=event_desctiption
@@ -59,13 +66,22 @@ def get_info():
     if not seating.lower()=='same':event_info['seating']=seating
     if not wifi_info.lower()=='same':event_info['wifi inforamtion']=wifi_info
     if not agenda.lower()=='same':event_info['agenda']=agenda
+    if not contact_organizer.lower()=='same':event_info['contact details of organizer']=contact_organizer
 
     for key in event_info:
         if event_info[key]=='': event_info[key]=None
+
+    while ('password' not in event_info and password.lower()=='same') or (password==''):
+        password=input('Invalid input. Please enter a valid password. ')
     
+    if password.lower()=='same' and password in event_info: password = event_info['password']
+    
+    while password in events.find({'password': password}):
+        password=input('That password\'s taken. Please enter a different password. ')
+
     global conversation_history
  
-    events.drop()
+    if change=='change':events.delete_one({'password':access})
     events.insert_one(event_info)
 
 def get_details():
@@ -74,7 +90,7 @@ def get_details():
         if key!='_id':print(f'{key}: {events.find_one()[key]}')
 
 def change_event():
-    change='change'
+    global change
     while change.lower()=='change':
         change=input('\nIf you want to change the details, type \'change\'. Otherwise, press enter to continue.\n')
         if change.lower()=='change':
@@ -83,6 +99,8 @@ def change_event():
             get_details()
 
 def create_event():
+    global change
+    change=False
     get_info()
     print('Thanks for the info. Your event has been organized.\n')
     get_details()
@@ -98,16 +116,23 @@ while not (role.lower() in ['attendee', 'organizer']):
 else:
     match role.lower():
         case 'organizer': 
-            if not events.count_documents({}):
-                print('You don\'t have any events planned yet.')
-                create_event=input('Do you want to create an event? Enter \'yes\' to create event. Otherwise press enter to exit program.\n')
-                if not (create_event=='yes'):quit()
+            create=input('Do you want to create an event? Enter \'yes\' to create event. Otherwise press enter to continue.\n')
+            if create.lower()=='yes': 
                 create_event()
             else:
-                print('Good, your event is already organized.\n')
-                delete=input('Do you want to delete your event? Enter \'yes\' to delete. Otherwise, press enter to continue.\n')
+                if events.count_documents({})==0:
+                    print('There are any saved events that you\'ve organized')
+                    quit()
+                access=input('Which event do you want to access? Enter the password of the event. Otherwise press enter to exit.\n')
+                if access=='': quit()
+                
+                while not any(event for event in events.find({'password': access})):
+                    access=input('Invalid password. Please enter a valid password or press enter to exit. ')
+                    if access=='': quit()
+
+                delete=input('\nDo you want to delete your event? Enter \'yes\' to delete. Otherwise, press enter to continue.\n')
                 if delete.lower()=='yes':
-                    events.drop()
+                    events.delete_one({'password': access})
                     print('Your event has been deleted')
                     quit()
 
@@ -118,28 +143,33 @@ else:
             if not events.count_documents({}):
                 print('There aren\'t any events planned for you yet.')
             else:
+                entry=input('Please provide a password for the event for which you want details. Press enter to exit program. ')
+                if entry=='':quit()
+                while not events.find_one({'password':entry}):
+                    entry=input('Invalid password. Please provide a correct password, or press enter to exit. ')
+                    if entry=='':quit()
+
                 print('Hello, I will be your AI assistant today.')
                 print('Feel free to ask me any questions about the event that you\'re attending.')
                 print('If you want to stop talking to me, just enter \'exit\' or \'quit\'.\n')
-                conversation_history.append(
-                    {
-                    'role':'user', 
-                    'content':'If you are asked when, give date and time if provided.'
-                    }
-                )
+                conversation_history.extend([
+                    {'role':'user','content':str(events.find())},
+                    {'role':'user','content':f'Here is the password provided to access details: {entry}'},
+                    {'role':'user', 'content':'If you are asked when, give date and time if provided.'}
+                ])
                 
-                if events.count_documents({}): 
-                    conversation_history = [
-                        {'role':'user','content':str(events.find_one())}
-                    ]
+                conversation_history = [
+                    {'role':'user','content':str(events.find_one())}
+                ]
 
                 while True:
                     user_input=input('''User: ''')
-                    if user_input.lower() in ['exit', 'quit']: 
+                    if user_input.lower() in ['exit', 'quit']:
                         print('Bye')
                         quit()
                     refined_input=f'''Act as an event organizer and provide an 
-                    answer to the question based on the MongoDB database. 
+                    answer to the question. Give information for the event for 
+                    which the password was provided. Refer to the MongoDB collection provided.
                     Include all details while answering the question,
                     but don't make the answer too long by inlcuding
                     unnecessary details. Do you understand?\n\n{user_input}'''
