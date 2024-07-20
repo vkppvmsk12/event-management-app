@@ -262,29 +262,28 @@ then your response should be:
    
 }'''}
 
-Give me a valid parsable JSON object.
-Before giving me the output, parse the output as JSON to make sure that there aren't any parsing errors
 '''
         response=get_response(prompt)
-        print(response)
         try:
-            response_object=json.loads(response)
+            response_object=json.loads(response[response.index('{'):response.rfind('}')+1])
         except json.decoder.JSONDecodeError:
             return 'Something went wrong, please try again.'
-        print(response_object)
         store_message(prompt, response)
-        if response_object.get('event'):
-            event=response_object.get('event')
-        else:
-            return 'Something went wrong, please try again'
         
-        if response_object.get('questions'):
+        
+        if response_object.get('questions')!=None:
             if len(response_object.get('questions')) >0:
                 print('\nPlease include the details for the following questions:')
                 answered_questions=iterate_questions(response_object['questions'])
                 continue
-            break
+            if response_object.get('event'):
+                event=response_object.get('event')
+            else:
+                return 'Something went wrong, please try again.'
+            events.delete_one({'event name':event_name})
+            events.insert_one(event)
+            return 'Event succesfully changed'
         else:
             return 'Something went wrong please try again.'
 
-change_event('Vihaan\'s 15th birthday party',['location', 'date','parking'])
+print(change_event('Vihaan\'s 15th birthday party',['location', 'date','parking']))
