@@ -12,7 +12,7 @@ def get_response(prompt):
     response=api.chat.completions.create(
         messages=[*conversation_history,{'role':'user','content':prompt}],
         model='gpt-4o',
-        temperature=0.3
+        temperature=0.4
     )
     return response.choices[0].message.content.strip()
 
@@ -37,7 +37,7 @@ def iterate_questions(questions):
         print('Sorry, something went wrong, please try again.')
 
 def create_event():
-    event_questions={}
+    answered_questions={}
     event={}
     while True:
         prompt=f'''
@@ -46,16 +46,14 @@ We are organizing an event and we would like to get the following details from t
     - Optional details: parking, food options, seating
 
 The following questions and answers are already available in JSON list format:
-{json.dumps(event_questions, indent=4)}
+{json.dumps(answered_questions, indent=4)}
 
-Make sure that all mandatory details are filled in and not empty.
-It's okay if the optional details are empty.
+Make sure that all details are filled in and not empty.
 
 The following 'event' JSON object is already built:
 {json.dumps(event, indent=4)}
 
 Update the above 'event' JSON object with all the details populated from the answers.
-It doesn't matter if the optional fields are empty.
 
 The object should meet the following criteria:
     1. The keys should be the specified parameters: 'event name', 'event description', ... (The ones mentioned above).
@@ -72,17 +70,20 @@ The questions should meet the following criteria:
     1. The questions should be short and concise
     2. The questions should be grammatically correct i.e. include capital letter and question mark
     3. The questions should indicate that the optional details can be left empty by entering 'N/A'.
-    4. For each detail there should be 1 question i.e. no combining details into 1 question 
+    4. The questions for the mandatory details should have an asterisk at the end indicating
+       that they are mandatory
+    5. For each detail there should be 1 question i.e. no combining details into 1 question 
     or separating details into multiple questions.
-    5. The questions should be explicit e.g. If the question is about date, 
+    6. The questions should be explicit e.g. If the question is about date, 
     ask 'What date is the event happening?' instead of asking 'When is the event?'.
-    6. There should be a space after the question i.e. '...? ' instead of '...?'.
-    7. There shouldn't be any duplicate question. Include each question only once.
+    7. There should be a space after the question i.e. '...? ' instead of '...?'.
+    8. There shouldn't be any duplicate question. Include each question only once.
 
 The array should meet the following criteria:
     1. The array must be in vector form. Avoid nested arrays.
     2. Don't include ```json``` or any other text besides the JSON array. 
-    Make sure the response is a valid JSON array with no parsing errors.
+    
+Make sure the response is a valid JSON array with no parsing errors.
 
 Return a JSON object containing the 'event' JSON object and the 'questions' JSON array.
 
@@ -101,14 +102,20 @@ Example:
 "questions": [
     "What is the location of the event? ",
     "What date is the event happening? ",
-    "What food options are available? "
+    "Is there parking available at the event? (enter N/A if none) ",
+    "What food options are available? (enter N/A if none) "
 ]
 }'''}    
 '''
         
         response=get_response(prompt)
-        response_object=json.loads(response)
-        event=response_object['event']
+        try:
+            response_object=json.loads(response)
+        except json.decoder.JSONDecodeError:
+            return 'Something went wrong, please try again'
+        store_message(prompt, response)
+        if response_object.get('event'):
+            event=response_object.get('event')
 
         if len(response_object.get('questions', [])) >0: 
             print('\nPlease include the details for the following questions:')
@@ -132,6 +139,7 @@ The output should be a valid parsable JSON object.
 '''
     
     response=get_response(prompt)
+    store_message(prompt, response)
     print(response)
     try:
         query=json.loads(response)
@@ -151,7 +159,7 @@ def chat(event_name):
 
     prompt=f'''
 Here is the 'events' collection in my database:
-{[event for event in events.find()]}
+{[events.find({'event name':event_name})]}
 Give me information about the following event: {event_name}
 '''
     conversation_history.append({'role':'user','content':prompt})
@@ -170,4 +178,113 @@ Give me information about the following event: {event_name}
                     {user_input}'''
 
         response=get_response(refined_input)
+        store_message(refined_input, response)
         print('Chatbot:',response)
+
+def get_details(event_name):
+    if not [doc for doc in events.find({'event name': event_name})]: return 'This event doesn\'t exist'
+    event_info=events.find({'event name':event_name})
+    for key in event_info:
+        print(f'{key}: {event_info[key]}')
+
+def change_event(event_name, wrong_parameters):
+    answered_questions={}
+    while True:
+        prompt=f'''
+The organizer of the event {event_name} has made some mistakes while entering the details for the event.
+The parameters that the organizer would like to update are in the 'wrong_parameters' list: 
+{wrong_parameters}
+
+The following 'event' dictionary with all event information has already been built: 
+{[doc for doc in events.find({'event name': event_name})][0]}
+
+This 'answered_questions' dictionary contains the questions already answered by the organizer and their answers:
+{answered_questions}
+
+Update the 'event' dictionary with the answers from the answered_questions dictionary. 
+
+For the event details that need to be updated, build a 'questions' JSON array 
+in vector form of questions for those details. Don't ask me questions if the details aren't present
+in the wrong_parameters list.
+
+The questions should meet the following criteria:
+    1. The questions should be short and concise
+    2. The questions should be grammatically correct i.e. include capital letter and question mark
+    3. The questions should indicate that the optional details can be left empty by entering 'N/A'.
+    4. The questions for the mandatory details should have an asterisk at the end indicating
+       that they are mandatory.
+    5. For each detail there should be 1 question i.e. no combining details into 1 question 
+    or separating details into multiple questions.
+    6. The questions should be explicit e.g. If the question is about date, 
+    ask 'What date is the event happening?' instead of asking 'When is the event?'.
+    7. There should be a space after the question i.e. '...? ' instead of '...?'.
+    8. There shouldn't be any duplicate question. Include each question only once.
+
+The array should meet the following criteria:
+    1. The array must be in vector form. Avoid nested arrays.
+    2. Don't include ```json``` or any other text besides the JSON array. 
+Make sure the response is a valid JSON array with no parsing errors.
+
+Return a JSON object containing the 'event' JSON object and the 'questions' JSON array.
+
+Example:
+If wrong_parameters = ["date", "seating", "parking"],
+and if event = {'''{
+    "event name": "abc",
+    "event description":"def",
+    "location":"ghi",
+    "date":"jkl",
+    "parking":"mno",
+    "food options":"pqr",
+    "seating": "stu"
+}'''}
+and if answered_questions = {'''{
+    {"question":"Is there parking available at the event? (enter N/A if none) ",
+     "answer":"123"}
+}'''}
+then your response should be:
+{'''{
+
+"event":{
+    "event name": "abc",
+    "event description":"def",
+    "location":"ghi",
+    "date":"jkl",
+    "parking":"123",
+    "food options":"pqr",
+    "seating": "stu"
+}
+
+"questions": [
+    "On what date does the event take place? ",
+    "How are the seating arrangements? "
+]
+   
+}'''}
+
+Give me a valid parsable JSON object.
+Before giving me the output, parse the output as JSON to make sure that there aren't any parsing errors
+'''
+        response=get_response(prompt)
+        print(response)
+        try:
+            response_object=json.loads(response)
+        except json.decoder.JSONDecodeError:
+            return 'Something went wrong, please try again.'
+        print(response_object)
+        store_message(prompt, response)
+        if response_object.get('event'):
+            event=response_object.get('event')
+        else:
+            return 'Something went wrong, please try again'
+        
+        if response_object.get('questions'):
+            if len(response_object.get('questions')) >0:
+                print('\nPlease include the details for the following questions:')
+                answered_questions=iterate_questions(response_object['questions'])
+                continue
+            break
+        else:
+            return 'Something went wrong please try again.'
+
+change_event('Vihaan\'s 15th birthday party',['location', 'date','parking'])
