@@ -3,6 +3,7 @@ from os import getenv
 from dotenv import load_dotenv
 import json
 from pymongo import MongoClient
+from bson.objectid import ObjectId
 
 load_dotenv('.env')
 api:str=OpenAI(api_key=getenv('API_KEY'))
@@ -12,7 +13,7 @@ def get_response(prompt):
     response=api.chat.completions.create(
         messages=[*conversation_history,{'role':'user','content':prompt}],
         model='gpt-4o',
-        temperature=0.4
+        temperature=0.3
     )
     return response.choices[0].message.content.strip()
 
@@ -63,8 +64,8 @@ The object should meet the following criteria:
     e.g. {'{"date":"8 September 2024", "event name":"Bob\'s Birthday party"}'}
 
 If for some event details the value is an empty string, build a 'questions' JSON array 
-in vector form of questions for those details. Don't ask me questions if the details are already present.
-If a detail was given, adding the information is mandatory.
+in vector form of questions for those details. Don't inlcude questions of the details 
+that are already present.
 
 The questions should meet the following criteria:
     1. The questions should be short and concise
@@ -119,56 +120,39 @@ Example:
 
         if len(response_object.get('questions', [])) >0: 
             print('\nPlease include the details for the following questions:')
-            event_questions=iterate_questions(response_object['questions'])
+            answered_questions=iterate_questions(response_object['questions'])
             continue
         break
 
-    events.insert_one(event)
-    return 'Event was succesfully created'
+    id=events.insert_one(event)
+    return f'''Event was succesfully created. Here is the event id: {id.inserted_id}. 
+    Store it somewhere, because you\'ll need it to change or delete your event.'''
 
-def delete_event(event_name):
-    prompt=f'''We want to delete an event from a MongoDB database. 
-Here's the name of the event we want to delete: {event_name}
-
-Can you generate a query in JSON object format to delete the event where the key is 'event name' and the 
-value is the name of the event provided? e.g. If the event name is 'abc', 
-your answer should be '{'{"event name":"abc"}'}'
-
-Avoid including ```json``` or any other text that could give an error while parsing.
-The output should be a valid parsable JSON object.
-'''
-    
-    response=get_response(prompt)
-    store_message(prompt, response)
-    print(response)
-    try:
-        query=json.loads(response)
-    except json.decoder.JSONDecodeError:
-        print('Sorry something went wrong. Please try again.')
-    
-    print(query)
-    result=events.delete_one(query)
-    
+def delete_event(event_id):
+    result=events.delete_one({'_id':ObjectId(event_id)})
     if result.deleted_count: return 'The event was succesfully deleted.'
-    return 'Sorry, no event with that name found.'
+    return 'Sorry, no event with that id found.'
 
-def chat(event_name):
+def chat(event_id):
+    event_id=ObjectId(event_id)
     print('Hello, I will be your AI assistant today.')
     print('Feel free to ask me any questions about the event that you\'re attending.')
     print('If you want to stop talking to me, just enter \'exit\' or \'quit\'.\n')
 
+    if not [doc for doc in events.find({'_id':event_id})]:
+        return 'Sorry no event with that id found'
+    
     prompt=f'''
-Here is the 'events' collection in my database:
-{[events.find({'event name':event_name})]}
-Give me information about the following event: {event_name}
+Here is the event info:
+{[doc for doc in events.find({'_id':ObjectId(event_id)})][0]}
+Give me information about this event
 '''
     conversation_history.append({'role':'user','content':prompt})
     
     while True:
         user_input=input('User: ')
         if user_input in ['exit','quit']:
-            print('Bye')
-            break
+            return 'Bye'
 
         refined_input=f'''Act as an event organizer and provide an 
                     answer to the question. Refer to the MongoDB collection provided.
@@ -181,11 +165,12 @@ Give me information about the following event: {event_name}
         store_message(refined_input, response)
         print('Chatbot:',response)
 
-def get_details(event_name):
-    if not [doc for doc in events.find({'event name': event_name})]: return 'This event doesn\'t exist'
-    event_info=events.find({'event name':event_name})
+def get_details(event_id):
+    if not [doc for doc in events.find({'_id': ObjectId(event_id)})]: return 'This event doesn\'t exist'
+    event_info=[doc for doc in events.find({'_id':ObjectId(event_id)})][0]
     for key in event_info:
-        print(f'{key}: {event_info[key]}')
+        if key!='_id':print(f'{key}: {event_info[key]}')
+    return ''
 
 def change_event(event_name, wrong_parameters):
     answered_questions={}
@@ -286,4 +271,4 @@ then your response should be:
         else:
             return 'Something went wrong please try again.'
 
-print(change_event('Vihaan\'s 15th birthday party',['location', 'date','parking']))
+chat('669d9038b21960c1a1e66a43')
