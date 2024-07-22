@@ -172,103 +172,49 @@ def get_details(event_id):
         if key!='_id':print(f'{key}: {event_info[key]}')
     return ''
 
-def change_event(event_name, wrong_parameters):
-    answered_questions={}
-    while True:
-        prompt=f'''
-The organizer of the event {event_name} has made some mistakes while entering the details for the event.
-The parameters that the organizer would like to update are in the 'wrong_parameters' list: 
-{wrong_parameters}
+def change_event(event_id, parameter):
+    if not [doc for doc in events.find({'_id':ObjectId(event_id)})][0]: return 'Sorry event not found.'
+    if parameter not in [doc for doc in events.find({'_id':ObjectId(event_id)})][0]: return 'Sorry, invalid parameter.'
+    prompt=f'''
+The organizer of an event has made a mistake while entering a detail for this event.
+The organizer would like to update the following detail: {parameter}
 
-The following 'event' dictionary with all event information has already been built: 
-{[doc for doc in events.find({'event name': event_name})][0]}
+Can you please generate a question to get information about this detail from the organizer?
+The question should have the following criteria:
+1. The question should be short and concise
+2. The question should be grammatically correct i.e. include capital letter and question mark
+3. If the question is a mandatory detail, then it should have an asterisk at the end.
+4. If the question is an optional detail, then it should
+5. The question should be explicit e.g. If the question is about date, 
+ask 'What date is the event happening?' instead of asking 'When is the event?'.
+6. There should be a space after the question i.e. '...? ' instead of '...?'.  
 
-This 'answered_questions' dictionary contains the questions already answered by the organizer and their answers:
-{answered_questions}
-
-Update the 'event' dictionary with the answers from the answered_questions dictionary. 
-
-For the event details that need to be updated, build a 'questions' JSON array 
-in vector form of questions for those details. Don't ask me questions if the details aren't present
-in the wrong_parameters list.
-
-The questions should meet the following criteria:
-    1. The questions should be short and concise
-    2. The questions should be grammatically correct i.e. include capital letter and question mark
-    3. The questions should indicate that the optional details can be left empty by entering 'N/A'.
-    4. The questions for the mandatory details should have an asterisk at the end indicating
-       that they are mandatory.
-    5. For each detail there should be 1 question i.e. no combining details into 1 question 
-    or separating details into multiple questions.
-    6. The questions should be explicit e.g. If the question is about date, 
-    ask 'What date is the event happening?' instead of asking 'When is the event?'.
-    7. There should be a space after the question i.e. '...? ' instead of '...?'.
-    8. There shouldn't be any duplicate question. Include each question only once.
-
-The array should meet the following criteria:
-    1. The array must be in vector form. Avoid nested arrays.
-    2. Don't include ```json``` or any other text besides the JSON array. 
-Make sure the response is a valid JSON array with no parsing errors.
-
-Return a JSON object containing the 'event' JSON object and the 'questions' JSON array.
-
-Example:
-If wrong_parameters = ["date", "seating", "parking"],
-and if event = {'''{
-    "event name": "abc",
-    "event description":"def",
-    "location":"ghi",
-    "date":"jkl",
-    "parking":"mno",
-    "food options":"pqr",
-    "seating": "stu"
-}'''}
-and if answered_questions = {'''{
-    {"question":"Is there parking available at the event? (enter N/A if none) ",
-     "answer":"123"}
-}'''}
-then your response should be:
-{'''{
-
-"event":{
-    "event name": "abc",
-    "event description":"def",
-    "location":"ghi",
-    "date":"jkl",
-    "parking":"123",
-    "food options":"pqr",
-    "seating": "stu"
-}
-
-"questions": [
-    "On what date does the event take place? ",
-    "How are the seating arrangements? "
-]
-   
-}'''}
-
+Example: If the wrong detail is date, then the question should be: 'On what date is the event?* '
 '''
-        response=get_response(prompt)
-        try:
-            response_object=json.loads(response[response.index('{'):response.rfind('}')+1])
-        except json.decoder.JSONDecodeError:
-            return 'Something went wrong, please try again.'
-        store_message(prompt, response)
-        
-        
-        if response_object.get('questions')!=None:
-            if len(response_object.get('questions')) >0:
-                print('\nPlease include the details for the following questions:')
-                answered_questions=iterate_questions(response_object['questions'])
-                continue
-            if response_object.get('event'):
-                event=response_object.get('event')
-            else:
-                return 'Something went wrong, please try again.'
-            events.delete_one({'event name':event_name})
-            events.insert_one(event)
-            return 'Event succesfully changed'
-        else:
-            return 'Something went wrong please try again.'
+    response=get_response(prompt)
+    store_message(prompt, response)
+    if response[-1]!=' ': response+=' '
+    answer=input(response)
 
-chat('669d9038b21960c1a1e66a43')
+    prompt2=f'''
+Here is the answer to your previous question: {answer}
+Please provide a JSON object of the updated detail.
+
+Example: If the detail was date, and the answer is 'abc', 
+then your response should be '{'{"date":"abc"}'}'.
+'''
+
+    response2=get_response(prompt2)
+    try:
+        response2=response2[response2.index('{'):response2.rfind('}')+1]
+    except ValueError:
+        return 'Sorry, something went wrong, please try again.'
+
+    try:
+        events.update_one({'_id':ObjectId(event_id)},{'$set':json.loads(response2)})
+    except json.decoder.JSONDecodeError:
+        return 'Sorry, something went wrong, please try again'
+    
+    return 'Event succesfully updated.'
+    
+print(change_event('669d9038b21960c1a1e66a43','location'))
