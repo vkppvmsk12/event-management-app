@@ -3,6 +3,7 @@ from os import getenv
 from dotenv import load_dotenv
 import json
 from pymongo import MongoClient
+from bson.objectid import ObjectId
 
 load_dotenv('.env')
 api:str=OpenAI(api_key=getenv('API_KEY'))
@@ -187,9 +188,11 @@ def get_details(event_name):
     for key in event_info:
         print(f'{key}: {event_info[key]}')
 
-def change_event(event_name, parameter):
+def change_event(event_id, parameter):
+    if not [doc for doc in events.find({'_id':ObjectId(event_id)})][0]: return 'Sorry event not found.'
+    if parameter not in [doc for doc in events.find({'_id':ObjectId(event_id)})][0]: return 'Sorry, invalid parameter.'
     prompt=f'''
-The organizer of the event '{event_name}' has made a mistake while entering a detail for this event.
+The organizer of an event has made a mistake while entering a detail for this event.
 The organizer would like to update the following detail: {parameter}
 
 Can you please generate a question to get information about this detail from the organizer?
@@ -222,12 +225,12 @@ then your response should be '{'{"date":"abc"}'}'.
         response2=response2[response2.index('{'):response2.rfind('}')+1]
     except ValueError:
         return 'Sorry, something went wrong, please try again.'
-    print(response2)
+
     try:
-        events.update_one({'event name':event_name},{'$set':json.loads(response2)})
+        events.update_one({'_id':ObjectId(event_id)},{'$set':json.loads(response2)})
     except json.decoder.JSONDecodeError:
         return 'Sorry, something went wrong, please try again'
     
     return 'Event succesfully updated.'
     
-print(change_event('Vihaan\'s 15th birthday party','location'))
+print(change_event('669d9038b21960c1a1e66a43','location'))
