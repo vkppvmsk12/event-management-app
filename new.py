@@ -43,18 +43,17 @@ def create_event():
     while True:
         prompt=f'''
 We are organizing an event and we would like to get the following details from the organizer:
-    - Mandatory details: event name, event description, location, date
-    - Optional details: parking, food options, seating
+    - Mandatory details: event name, event description, location, date, start time, end time, contact info of organizer
+    - Optional details: parking, food options, seating, wifi info of venue, schedule of event 
 
-The following questions and answers are already available in JSON list format:
+The following questions and answers are already available in JSON array format:
 {json.dumps(answered_questions, indent=4)}
-
-Make sure that all details are filled in and not empty.
+It is possible that this JSON array is empty, that just means that I haven't given any info yet.
 
 The following 'event' JSON object is already built:
 {json.dumps(event, indent=4)}
 
-Update the above 'event' JSON object with all the details populated from the answers.
+Update the above 'event' JSON object with all the details populated from the answers if any.
 
 The object should meet the following criteria:
     1. The keys should be the specified parameters: 'event name', 'event description', ... (The ones mentioned above).
@@ -64,14 +63,16 @@ The object should meet the following criteria:
     e.g. {'{"date":"8 September 2024", "event name":"Bob\'s Birthday party"}'}
 
 If for some event details the value is an empty string, build a 'questions' JSON array 
-in vector form of questions for those details. Don't inlcude questions of the details 
-that are already present.
+in vector form of questions for those details. 
+Don't inlcude questions of the details that are already present. 
+
+The array must be in vector form. Avoid nested arrays.
 
 The questions should meet the following criteria:
     1. The questions should be short and concise
     2. The questions should be grammatically correct i.e. include capital letter and question mark
     3. The questions should indicate that the optional details can be left empty by entering 'N/A'.
-    4. The questions for the mandatory details should have an asterisk at the end indicating
+    4. The questions for the mandatory details should have an asterisk (*)  at the end indicating
        that they are mandatory
     5. For each detail there should be 1 question i.e. no combining details into 1 question 
     or separating details into multiple questions.
@@ -79,10 +80,6 @@ The questions should meet the following criteria:
     ask 'What date is the event happening?' instead of asking 'When is the event?'.
     7. There should be a space after the question i.e. '...? ' instead of '...?'.
     8. There shouldn't be any duplicate question. Include each question only once.
-
-The array should meet the following criteria:
-    1. The array must be in vector form. Avoid nested arrays.
-    2. Don't include ```json``` or any other text besides the JSON array. 
     
 Make sure the response is a valid JSON array with no parsing errors.
 
@@ -96,13 +93,18 @@ Example:
     "event description": "abc",
     "location": "",
     "date": "",
+    "start time":"def"
+    "end time": "ghi"
+    "contact info of organizer":"jkl"
     "parking": "",
     "food options": "",
     "seating": "seat 3A"
+    "wifi info of venue": "mno"
+    "schedule of event":"pqr"
 },
 "questions": [
-    "What is the location of the event? ",
-    "What date is the event happening? ",
+    "What is the location of the event?* ",
+    "What date is the event happening?* ",
     "Is there parking available at the event? (enter N/A if none) ",
     "What food options are available? (enter N/A if none) "
 ]
@@ -110,6 +112,7 @@ Example:
 '''
         
         response=get_response(prompt)
+        response=response[response.index('{'):response.rfind('}')+1]
         try:
             response_object=json.loads(response)
         except json.decoder.JSONDecodeError:
@@ -126,7 +129,7 @@ Example:
 
     id=events.insert_one(event)
     return f'''Event was succesfully created. Here is the event id: {id.inserted_id}. 
-    Store it somewhere, because you\'ll need it to change or delete your event.'''
+Store it somewhere, because you\'ll need it to edit or delete your event.'''
 
 def delete_event(event_id):
     result=events.delete_one({'_id':ObjectId(event_id)})
@@ -216,5 +219,5 @@ then your response should be '{'{"date":"abc"}'}'.
         return 'Sorry, something went wrong, please try again'
     
     return 'Event succesfully updated.'
-    
-print(change_event('669d9038b21960c1a1e66a43','location'))
+
+print(create_event())
