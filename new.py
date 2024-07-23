@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import json
 from pymongo import MongoClient
 from bson.objectid import ObjectId
+from bson.errors import InvalidId
 
 load_dotenv('.env')
 api:str=OpenAI(api_key=getenv('API_KEY'))
@@ -132,12 +133,18 @@ Example:
 Store it somewhere, because you\'ll need it to edit or delete your event.'''
 
 def delete_event(event_id):
-    result=events.delete_one({'_id':ObjectId(event_id)})
+    try:
+        result=events.delete_one({'_id':ObjectId(event_id)})
+    except InvalidId:
+        return 'Sorry, invalid id'
     if result.deleted_count: return 'The event was succesfully deleted.'
     return 'Sorry, no event with that id found.'
 
 def chat(event_id):
-    event_id=ObjectId(event_id)
+    try:
+        event_id=ObjectId(event_id)
+    except InvalidId:
+        return 'Sorry invalid id.'
     print('Hello, I will be your AI assistant today.')
     print('Feel free to ask me any questions about the event that you\'re attending.')
     print('If you want to stop talking to me, just enter \'exit\' or \'quit\'.\n')
@@ -155,7 +162,7 @@ Give me information about this event
     while True:
         user_input=input('User: ')
         if user_input in ['exit','quit']:
-            return 'Bye'
+            return 'Thanks for talking to me!. If you have anymore questions, don\'t hesitate to ask!'
 
         refined_input=f'''Act as an event organizer and provide an 
                     answer to the question. Refer to the MongoDB collection provided.
@@ -169,15 +176,23 @@ Give me information about this event
         print('Chatbot:',response)
 
 def get_details(event_id):
-    if not [doc for doc in events.find({'_id': ObjectId(event_id)})]: return 'This event doesn\'t exist'
-    event_info=[doc for doc in events.find({'_id':ObjectId(event_id)})][0]
+    try:
+        event_id=ObjectId(event_id)
+    except InvalidId:
+        return 'Sorry, invalid id.'
+    if not [doc for doc in events.find({'_id': event_id})]: return 'This event doesn\'t exist'
+    event_info=[doc for doc in events.find({'_id':event_id})][0]
     for key in event_info:
         if key!='_id':print(f'{key}: {event_info[key]}')
     return ''
 
 def change_event(event_id, parameter):
-    if not [doc for doc in events.find({'_id':ObjectId(event_id)})][0]: return 'Sorry event not found.'
-    if parameter not in [doc for doc in events.find({'_id':ObjectId(event_id)})][0]: return 'Sorry, invalid parameter.'
+    try:
+        event_id=ObjectId(event_id)
+    except InvalidId:
+        return 'Sorry invalid id.'
+    if not [doc for doc in events.find({'_id':event_id})][0]: return 'Sorry event not found.'
+    if parameter not in [doc for doc in events.find({'_id':event_id})][0]: return 'Sorry, invalid parameter.'
     prompt=f'''
 The organizer of an event has made a mistake while entering a detail for this event.
 The organizer would like to update the following detail: {parameter}
@@ -198,6 +213,7 @@ Example: If the wrong detail is date, then the question should be: 'On what date
     store_message(prompt, response)
     if response[-1]!=' ': response+=' '
     answer=input(response)
+    if answer.strip()=='': return 'Event not changed.'
 
     prompt2=f'''
 Here is the answer to your previous question: {answer}
@@ -205,6 +221,8 @@ Please provide a JSON object of the updated detail.
 
 Example: If the detail was date, and the answer is 'abc', 
 then your response should be '{'{"date":"abc"}'}'.
+Copy the parameter exactly as it was given in my previous prompt.
+Don't include an underscore between words. 
 '''
 
     response2=get_response(prompt2)
@@ -214,10 +232,10 @@ then your response should be '{'{"date":"abc"}'}'.
         return 'Sorry, something went wrong, please try again.'
 
     try:
-        events.update_one({'_id':ObjectId(event_id)},{'$set':json.loads(response2)})
+        events.update_one({'_id':event_id},{'$set':json.loads(response2)})
     except json.decoder.JSONDecodeError:
         return 'Sorry, something went wrong, please try again'
     
     return 'Event succesfully updated.'
 
-print(create_event())
+print(chat('669eee20a41116168515ebcf'))
