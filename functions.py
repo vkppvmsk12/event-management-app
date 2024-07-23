@@ -182,7 +182,7 @@ def get_details(event_id):
         return 'Sorry, invalid id.'
     if not [doc for doc in events.find({'_id': event_id})]: return 'This event doesn\'t exist'
     event_info=[doc for doc in events.find({'_id':event_id})][0]
-    print('\nHere are the event details:')
+    print('\nHere are the event details for your event:')
     for key in event_info:
         if key!='_id':print(f'{key}: {event_info[key]}')
     return ''
