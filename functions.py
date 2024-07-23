@@ -129,8 +129,8 @@ Example:
         break
 
     id=events.insert_one(event)
-    return f'''Event was succesfully created. Here is the event id: {id.inserted_id}. 
-Store it somewhere, because you\'ll need it to edit or delete your event.'''
+    return f'''\nEvent was succesfully created. Here is the event id: {id.inserted_id}. Store 
+it somewhere, because you\'ll need it to edit or delete your event.'''
 
 def delete_event(event_id):
     try:
@@ -182,6 +182,7 @@ def get_details(event_id):
         return 'Sorry, invalid id.'
     if not [doc for doc in events.find({'_id': event_id})]: return 'This event doesn\'t exist'
     event_info=[doc for doc in events.find({'_id':event_id})][0]
+    print('\nHere are the event details:')
     for key in event_info:
         if key!='_id':print(f'{key}: {event_info[key]}')
     return ''
@@ -222,7 +223,11 @@ Please provide a JSON object of the updated detail.
 Example: If the detail was date, and the answer is 'abc', 
 then your response should be '{'{"date":"abc"}'}'.
 Copy the parameter exactly as it was given in my previous prompt.
-Don't include an underscore between words. 
+Don't include an underscore between words.
+
+If a similar parameter to what was provided already exists, then overwrite that parameter
+e.g. if starting time was provided, and start time exists, then overwrite start time and give
+the following response '{'{"starting time":"abc"}'}' considering that abc is the changed value.
 '''
 
     response2=get_response(prompt2)
