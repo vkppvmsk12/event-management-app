@@ -187,58 +187,52 @@ def get_details(event_id):
         if key!='_id':print(f'{key}: {event_info[key]}')
     return ''
 
-def change_event(event_id, parameter):
+def change_event(event_id, wrong_details):
     try:
         event_id=ObjectId(event_id)
     except InvalidId:
         return 'Sorry invalid id.'
     if not [doc for doc in events.find({'_id':event_id})][0]: return 'Sorry event not found.'
-    if parameter not in [doc for doc in events.find({'_id':event_id})][0]: return 'Sorry, invalid parameter.'
     prompt=f'''
 The organizer of an event has made a mistake while entering a detail for this event.
-The organizer would like to update the following detail: {parameter}
 
-Can you please generate a question to get information about this detail from the organizer?
-The question should have the following criteria:
-1. The question should be short and concise
-2. The question should be grammatically correct i.e. include capital letter and question mark
-3. If the question is a mandatory detail, then it should have an asterisk at the end.
-4. If the question is an optional detail, then it should
-5. The question should be explicit e.g. If the question is about date, 
-ask 'What date is the event happening?' instead of asking 'When is the event?'.
-6. There should be a space after the question i.e. '...? ' instead of '...?'.  
+The organizer would like to update the following details: 
+{wrong_details}
 
-Example: If the wrong detail is date, then the question should be: 'On what date is the event?* '
+Can you please generate a JSON object containing only the updated details? 
+The key should be the detail, and the value should be the given info from the organizer
+
+For the keys, choose from the following: event name, event description, location, date, start time,
+end time, contact info of organizer, parking, food options, seating, wifi info of venue, schedule of event.
+
+Copy the keys exactly as sepcified above, so that they can be overwritten in the database.
+Don't include an underscore to separate words.
+
+Example: 
+If the correction specified by the organizer is 
+'I want the attendees to contact me by my e-mail: xyz@gmail.com and I want to shorten the event to 8pm',
+
+then your response should be:
+{'''{
+    "contact info of organizer":"e-mail: xyz@gmail.com"
+    "end time": "8pm"
+}'''}
+
+Avoid nested objects, and make all the keys and values strings only.
 '''
+    
     response=get_response(prompt)
-    store_message(prompt, response)
-    if response[-1]!=' ': response+=' '
-    answer=input(response)
-    if answer.strip()=='': return 'Event not changed.'
-
-    prompt2=f'''
-Here is the answer to your previous question: {answer}
-Please provide a JSON object of the updated detail.
-
-Example: If the detail was date, and the answer is 'abc', 
-then your response should be '{'{"date":"abc"}'}'.
-Copy the parameter exactly as it was given in my previous prompt.
-Don't include an underscore between words.
-
-If a similar parameter to what was provided already exists, then overwrite that parameter
-e.g. if starting time was provided, and start time exists, then overwrite start time and give
-the following response '{'{"starting time":"abc"}'}' considering that abc is the changed value.
-'''
-
-    response2=get_response(prompt2)
+    response=response[response.index('{'):response.rfind('}')+1]
     try:
-        response2=response2[response2.index('{'):response2.rfind('}')+1]
-    except ValueError:
-        return 'Sorry, something went wrong, please try again.'
-
-    try:
-        events.update_one({'_id':event_id},{'$set':json.loads(response2)})
+        response=json.loads(response)
     except json.decoder.JSONDecodeError:
         return 'Sorry, something went wrong, please try again'
+    
+    list_keys=['event name','event description','location','date','time','contact info of organizer',
+        'parking', 'seating','wifi info of venue', 'schedule of event']
+    for key in response:
+        if key not in list_keys: return 'Sorry, something went wrong, please try again.'
+    
+    events.update_many({'_id':ObjectId(event_id)}, {'$set':response})
     
     return 'Event succesfully updated.'
