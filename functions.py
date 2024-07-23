@@ -237,5 +237,3 @@ Don't include an underscore between words.
         return 'Sorry, something went wrong, please try again'
     
     return 'Event succesfully updated.'
-
-print(chat('669eee20a41116168515ebcf'))
