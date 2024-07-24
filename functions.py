@@ -18,6 +18,15 @@ def get_response(prompt):
     )
     return response.choices[0].message.content.strip()
 
+def get_json_object_response(prompt):
+    response=api.chat.completions.create(
+        messages=[*conversation_history,{'role':'user','content':prompt}],
+        model='gpt-4o',
+        temperature=0.3,
+        response_format={'type':'json_object'}
+    )
+    return response.choices[0].message.content.strip()
+
 def store_message(user_input, response):
     conversation_history.extend([
         {'role':'user','content':user_input},{'role':'system','content':response}
@@ -112,7 +121,7 @@ Example:
 }'''}    
 '''
         
-        response=get_response(prompt)
+        response=get_json_object_response(prompt)
         response=response[response.index('{'):response.rfind('}')+1]
         try:
             response_object=json.loads(response)
@@ -196,6 +205,9 @@ def change_event(event_id, wrong_details):
     prompt=f'''
 The organizer of an event has made a mistake while entering a detail for this event.
 
+Here are the original event details for context:
+{[doc for doc in events.find({'_id':ObjectId(event_id)},{'_id':0})][0]}
+
 The organizer would like to update the following details: 
 {wrong_details}
 
@@ -206,7 +218,7 @@ For the keys, choose from the following: event name, event description, location
 end time, contact info of organizer, parking, food options, seating, wifi info of venue, schedule of event.
 
 Copy the keys exactly as sepcified above, so that they can be overwritten in the database.
-Don't include an underscore to separate words.
+Don't include an underscore to separate words. Include all details provided
 
 Example: 
 If the correction specified by the organizer is 
@@ -220,18 +232,18 @@ then your response should be:
 
 Avoid nested objects, and make all the keys and values strings only.
 '''
-    
-    response=get_response(prompt)
+
+    response=get_json_object_response(prompt)
     response=response[response.index('{'):response.rfind('}')+1]
     try:
         response=json.loads(response)
     except json.decoder.JSONDecodeError:
         return 'Sorry, something went wrong, please try again'
     
-    list_keys=['event name','event description','location','date','time','contact info of organizer',
-        'parking', 'seating','wifi info of venue', 'schedule of event']
+    list_keys=['event name','event description','location','date','start time', 'end time', 'food options',
+    'contact info of organizer','parking', 'seating','wifi info of venue', 'schedule of event']
     for key in response:
-        if key not in list_keys: return 'Sorry, something went wrong, please try again.'
+        if key.strip() not in list_keys: return 'Sorry, something went wrong, please try again.'
     
     events.update_many({'_id':ObjectId(event_id)}, {'$set':response})
     

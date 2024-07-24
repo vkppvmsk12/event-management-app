@@ -15,7 +15,7 @@ match role.lower():
     
     case 'organizer':
         choice=input('''\nDo you want to create, delete, or edit an event? 
-Answer with create/edit/delete, otherwise press enter to continue. ''')
+Answer with create/edit/delete, otherwise press enter to exit. ''')
 
         match choice.lower():
             case 'create':
@@ -26,8 +26,11 @@ Answer with create/edit/delete, otherwise press enter to continue. ''')
                 id=input('\nPlease provide id to edit event. ')
                 print(details:=get_details(id))
                 if details: quit()
-                parameter=input('What do you want to change about the event? ')
-                print(change_event(id, parameter.lower()))
+                
+                change=input('What do you want to change about the event? ')
+                print(change_event(id, change))
+                
+                get_details(id)
             
             case 'delete':
                 id=input('\nPlease provide id to delete event. ')
