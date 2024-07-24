@@ -11,6 +11,7 @@ api:str=OpenAI(api_key = getenv('API_KEY'))
 conversation_history = []
 
 def get_response(prompt):
+    # Get a response from the OpenAI API for a given prompt.
     response = api.chat.completions.create(
         messages = [*conversation_history, {'role':'user','content':prompt}],
         model = 'gpt-4o',
@@ -19,6 +20,7 @@ def get_response(prompt):
     return response.choices[0].message.content.strip()
 
 def get_json_object_response(prompt):
+    # Get a JSON object response from the OpenAI API for a given prompt.
     response = api.chat.completions.create(
         messages = [*conversation_history,{'role':'user','content':prompt}],
         model = 'gpt-4o',
@@ -28,6 +30,7 @@ def get_json_object_response(prompt):
     return response.choices[0].message.content.strip()
 
 def store_message(user_input, response):
+    # Store the user input and response in the conversation history.
     conversation_history.extend([
         {'role':'user', 'content':user_input},{'role':'system', 'content':response}
     ])
@@ -37,6 +40,7 @@ db = client['mydb']
 events = db['events']
 
 def iterate_questions(questions):
+    # Iterate through a list of questions and collect answers from the user.
     event_questions = []
     try:
         for question in questions:
@@ -49,6 +53,7 @@ def iterate_questions(questions):
         print('Sorry, something went wrong, please try again.')
 
 def create_event():
+    # Create a new event by collecting details from the organizer.
     answered_questions = {}
     event = {}
     while True:
@@ -145,6 +150,7 @@ Example:
 it somewhere, because you\'ll need it to edit or delete your event.'''
 
 def delete_event(event_id):
+    # Delete an existing event.
     try:
         result = events.delete_one({'_id':ObjectId(event_id)})
     except InvalidId:
@@ -156,6 +162,7 @@ def delete_event(event_id):
     return 'Sorry, no event with that id found.'
 
 def chat(event_id):
+    # Chat with ChatGPT and get info about an event.
     try:
         event_id = ObjectId(event_id)
     except InvalidId:
@@ -192,6 +199,7 @@ Give me information about this event
         print('Chatbot:',response)
 
 def get_details(event_id):
+    # Get an event's details.
     try:
         event_id = ObjectId(event_id)
     except InvalidId:
@@ -209,7 +217,8 @@ def get_details(event_id):
 
     return ''
 
-def change_event(event_id, wrong_details):
+def update_event(event_id, wrong_details):
+    # Update an existing event with the corrected details
     try:
         event_id = ObjectId(event_id)
     except InvalidId:

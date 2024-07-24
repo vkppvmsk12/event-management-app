@@ -1,4 +1,4 @@
-from functions import create_event, delete_event, chat, get_details, change_event
+from functions import create_event, delete_event, chat, get_details, update_event
 
 def main():
     # Main function to handle the user role and corresponding actions.
@@ -42,7 +42,7 @@ Answer with create/edit/delete, otherwise press enter to exit. ''').strip().lowe
             quit()
         
         change = input('What do you want to change about the event? ')
-        print(change_event(id, change))
+        print(update_event(id, change))
         get_details(id)
     
     elif choice == 'delete':
