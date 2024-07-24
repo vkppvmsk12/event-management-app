@@ -217,8 +217,8 @@ def get_details(event_id):
 
     return ''
 
-def update_event(event_id, wrong_details):
-    # Update an existing event with the corrected details
+def edit_event(event_id, wrong_details):
+    # Edit an existing event with the corrected details
     try:
         event_id = ObjectId(event_id)
     except InvalidId:
