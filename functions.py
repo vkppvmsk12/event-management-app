@@ -5,13 +5,21 @@ import json
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 from bson.errors import InvalidId
+import logging
+
+logger = logging.getLogger(__name__)
+handler = logging.FileHandler('.log')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
 
 load_dotenv('.env')
 api:str=OpenAI(api_key = getenv('API_KEY'))
 conversation_history = []
 
 def get_response(prompt):
-    # Get a response from the OpenAI API for a given prompt.
+    '''Get a response from the OpenAI API for a given prompt.'''
     response = api.chat.completions.create(
         messages = [*conversation_history, {'role':'user','content':prompt}],
         model = 'gpt-4o',
@@ -20,7 +28,7 @@ def get_response(prompt):
     return response.choices[0].message.content.strip()
 
 def get_json_object_response(prompt):
-    # Get a JSON object response from the OpenAI API for a given prompt.
+    '''Get a JSON object response from the OpenAI API for a given prompt.'''
     response = api.chat.completions.create(
         messages = [*conversation_history,{'role':'user','content':prompt}],
         model = 'gpt-4o',
@@ -30,7 +38,7 @@ def get_json_object_response(prompt):
     return response.choices[0].message.content.strip()
 
 def store_message(user_input, response):
-    # Store the user input and response in the conversation history.
+    '''Store the user input and response in the conversation history.'''
     conversation_history.extend([
         {'role':'user', 'content':user_input},{'role':'system', 'content':response}
     ])
@@ -40,7 +48,7 @@ db = client['mydb']
 events = db['events']
 
 def iterate_questions(questions):
-    # Iterate through a list of questions and collect answers from the user.
+    '''Iterate through a list of questions and collect answers from the user.'''
     event_questions = []
     try:
         for question in questions:
@@ -51,9 +59,10 @@ def iterate_questions(questions):
         return event_questions
     except json.decoder.JSONDecodeError:
         print('Sorry, something went wrong, please try again.')
+        logging.info(f'List of questions not answered yet: {questions}')
 
 def create_event():
-    # Create a new event by collecting details from the organizer.
+    '''Create a new event by collecting details from the organizer.'''
     answered_questions = {}
     event = {}
     while True:
@@ -128,13 +137,18 @@ Example:
 '''
         
         response = get_json_object_response(prompt)
-        response = response[response.index('{'):response.rfind('}')+1]
+        store_message(prompt, response)
+
+        sliced_response = response[response.find('{'):response.rfind('}')+1]
+        if not sliced_response:
+            logging.info(f'Response for creating event (unsliced): {response}')
+            return 'Sorry, something went wrong, please try again'
 
         try:
-            response_object = json.loads(response)
+            response_object = json.loads(sliced_response)
         except json.decoder.JSONDecodeError:
+            logging.info(f'Response for creating event (unsliced): {response}')
             return 'Something went wrong, please try again'
-        store_message(prompt, response)
         
         if response_object.get('event'):
             event = response_object.get('event')
@@ -150,7 +164,7 @@ Example:
 it somewhere, because you\'ll need it to edit or delete your event.'''
 
 def delete_event(event_id):
-    # Delete an existing event.
+    '''Delete an existing event.'''
     try:
         result = events.delete_one({'_id':ObjectId(event_id)})
     except InvalidId:
@@ -162,7 +176,7 @@ def delete_event(event_id):
     return 'Sorry, no event with that id found.'
 
 def chat(event_id):
-    # Chat with ChatGPT and get info about an event.
+    '''Chat with ChatGPT and get info about an event.'''
     try:
         event_id = ObjectId(event_id)
     except InvalidId:
@@ -199,7 +213,7 @@ Give me information about this event
         print('Chatbot:',response)
 
 def get_details(event_id):
-    # Get an event's details.
+    '''Get an event's details.'''
     try:
         event_id = ObjectId(event_id)
     except InvalidId:
@@ -218,7 +232,7 @@ def get_details(event_id):
     return ''
 
 def edit_event(event_id, wrong_details):
-    # Edit an existing event with the corrected details
+    '''Edit an existing event with the corrected details'''
     try:
         event_id = ObjectId(event_id)
     except InvalidId:
@@ -259,10 +273,17 @@ Avoid nested objects, and make all the keys and values strings only.
 '''
 
     response = get_json_object_response(prompt)
-    response = response[response.index('{') : response.rfind('}')+1]
+    store_message(prompt, response)
+
+    sliced_response = response[response.find('{'):response.rfind('}')+1]
+    if not sliced_response:
+        logging.info(f'Response for editing event (unsliced): {response}')
+        return 'Sorry, something went wrong, please try again.'
+
     try:
-        response = json.loads(response)
+        response = json.loads(sliced_response)
     except json.decoder.JSONDecodeError:
+        logging.info(f'Response for editing event (unsliced): {response}')
         return 'Sorry, something went wrong, please try again'
     
     list_keys = ['event name','event description','location','date','start time', 'end time', 'food options',
