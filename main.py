@@ -8,7 +8,7 @@ def main():
         raise SystemExit
 
     while role not in ['attendee', 'organizer']:
-        role = input('Please answer with attendee/organizer or press enter to exit. ')
+        role = input('Please answer with attendee/organizer or press enter to exit. ').lower().strip()
         if role == '':
             raise SystemExit
 
