@@ -2,23 +2,23 @@ from functions import create_event, delete_event, chat, get_details, edit_event,
 from bson.objectid import ObjectId
 
 def main():
-    # Main function to handle the user role and corresponding actions.
-    role = input('Are you an event organizer or an event attendee? Answer with attendee/organizer or press enter to exit. ')
-    if role.strip() == '':
+    '''Main function to handle the user role and corresponding actions.'''
+    role = input('Are you an event organizer or an event attendee? Answer with attendee/organizer or press enter to exit. ').lower().strip()
+    if role == '':
         raise SystemExit
 
-    while role.lower() not in ['attendee', 'organizer']:
+    while role not in ['attendee', 'organizer']:
         role = input('Please answer with attendee/organizer or press enter to exit. ')
-        if role.strip() == '':
+        if role == '':
             raise SystemExit
 
-    if role.lower() == 'attendee':
+    if role == 'attendee':
         handle_attendee()
-    elif role.lower() == 'organizer':
+    elif role == 'organizer':
         handle_organizer()
 
 def handle_attendee():
-    # Handle actions for event attendees.
+    '''Handle actions for event attendees.'''
     chat_id = input('\nPlease provide an event id for your event, or press enter to exit. ')
     if chat_id.strip() == '':
         raise SystemExit
@@ -26,16 +26,15 @@ def handle_attendee():
     print(chat(chat_id))
 
 def handle_organizer():
-    # Handle actions for event organizers.
+    '''Handle actions for event organizers.'''
     choice = input('''\nDo you want to create, delete, or edit an event? 
 Answer with create/edit/delete, otherwise press enter to exit. ''').strip().lower()
 
     if choice == 'create':
         result = create_event()
-        if result:
-            print(result)
-            if result[0] == 'E':
-                get_details(result[result.index(':') + 2:result.index('. S')])
+        print(result)
+        if result[0] == 'E':
+            get_details(result[result.index(':') + 2:result.index('. S')])
     
     elif choice == 'edit':
         id = input('\nPlease provide id to edit event. ')
