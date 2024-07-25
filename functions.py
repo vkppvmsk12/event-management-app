@@ -64,7 +64,7 @@ def iterate_questions(questions):
 def create_event():
     '''Create a new event by collecting details from the organizer.'''
     answered_questions = {}
-    event_info = {}
+    event = {}
     while True:
         prompt = f'''
 We are organizing an event and we would like to get the following details from the organizer:
@@ -76,7 +76,7 @@ The following questions and answers are already available in JSON array format:
 It is possible that this JSON array is empty, that just means that I haven't given any info yet.
 
 The following 'event' JSON object is already built:
-{json.dumps(event_info, indent=4)}
+{json.dumps(event, indent=4)}
 
 Update the above 'event' JSON object with all the details populated from the answers if any.
 
@@ -151,27 +151,15 @@ Example:
             return 'Something went wrong, please try again'
         
         if response_object.get('event'):
-            event_info = response_object.get('event')
+            event = response_object.get('event')
 
         if len(response_object.get('questions', [])) > 0: 
             print('\nPlease include the details for the following questions:')
             answered_questions = iterate_questions(response_object['questions'])
             continue
         break
-    
-    password = input('''\nPlease provide a password for this event. 
-This password will be used to edit or delete the event if necessary. Remember this password.\n''')
-    confirm_password = input('\nPlease confirm your password. ')    
-    
-    while password != confirm_password:
-        print('\nThe passwords don\'t match. Please re-enter the passwords.')
-        password = input('''Please provide a password for this event. 
-This password will be used to edit or delete the event if necessary. Remember this password.\n''')
-        confirm_password = input('\nPlease confirm your password. ')
-    
-    event_info['password'] = password
 
-    id = events.insert_one(event_info)
+    id = events.insert_one(event)
     return f'''\nEvent was succesfully created. Here is the event id: {id.inserted_id}. Store 
 it somewhere, because you\'ll need it to edit or delete your event.'''
 
@@ -193,18 +181,18 @@ def chat(event_id):
         event_id = ObjectId(event_id)
     except InvalidId:
         return 'Sorry invalid id.'
-
-    if not [doc for doc in events.find({'_id':event_id})]:
-        return 'Sorry no event with that id found'
     
     print('Hello, I will be your AI assistant today.')
     print('Feel free to ask me any questions about the event that you\'re attending.')
     print('If you want to stop talking to me, just enter \'exit\' or \'quit\'.\n')
+
+    if not [doc for doc in events.find({'_id':event_id})]:
+        return 'Sorry no event with that id found'
     
     prompt = f'''
 Here is the event info:
 {[doc for doc in events.find({'_id':ObjectId(event_id)})][0]}
-Give me information about this event.
+Give me information about this event
 '''
     conversation_history.append({'role':'user','content':prompt})
     
@@ -217,8 +205,6 @@ Give me information about this event.
                     answer to the question. Refer to the MongoDB collection provided.
                     Give a short and concise answer. Only give an answer to the
                     question that was asked. Don't include any unnecessary details.
-                    If the user asks for the password, don't tell them. It's confidential
-                    information.
                     
                     {user_input}'''
 
@@ -240,7 +226,7 @@ def get_details(event_id):
 
     print('\nHere are the event details for your event:')
     for key in event_info:
-        if key not in ['_id', 'password']:
+        if key != '_id':
             print(f'{key}: {event_info[key]}')
 
     return ''
