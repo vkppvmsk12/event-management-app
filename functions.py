@@ -12,7 +12,7 @@ handler = logging.FileHandler('.log')
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 load_dotenv('.env')
 api:str=OpenAI(api_key = getenv('API_KEY'))
@@ -60,12 +60,12 @@ def iterate_questions(questions):
         return event_questions
     except json.decoder.JSONDecodeError:
         print('Sorry, something went wrong, please try again.')
-        logging.info(f'List of questions not answered yet: {questions}')
+        logger.info(f'List of questions not answered yet: {questions}')
 
 def create_event():
     '''Create a new event by collecting details from the organizer.'''
     answered_questions = {}
-    event = {}
+    event_info = {}
     while True:
         prompt = f'''
 We are organizing an event and we would like to get the following details from the organizer:
@@ -77,7 +77,7 @@ The following questions and answers are already available in JSON array format:
 It is possible that this JSON array is empty, that just means that I haven't given any info yet.
 
 The following 'event' JSON object is already built:
-{json.dumps(event, indent = 4)}
+{json.dumps(event_info, indent = 4)}
 
 Update the above 'event' JSON object with all the details populated from the answers if any.
 
@@ -142,17 +142,17 @@ Example:
 
         sliced_response = response[response.find('{'):response.rfind('}')+1]
         if not sliced_response:
-            logging.info(f'Response for creating event (unsliced): {response}')
+            logger.info(f'Response for creating event (unsliced): {response}')
             return 'Sorry, something went wrong, please try again'
 
         try:
             response_object = json.loads(sliced_response)
         except json.decoder.JSONDecodeError:
-            logging.info(f'Response for creating event (unsliced): {response}')
+            logger.info(f'Response for creating event (unsliced): {response}')
             return 'Something went wrong, please try again'
         
         if response_object.get('event'):
-            event = response_object.get('event')
+            event_info = response_object.get('event')
 
         if len(response_object.get('questions', [])) > 0: 
             print('\nPlease include the details for the following questions:')
@@ -160,20 +160,7 @@ Example:
             continue
         break
 
-    username = input('\nPlease enter your username or press enter to exit: ').strip()
-    if not username:
-        raise SystemExit
-
-    logging.info([doc for doc in users.find({'username':username})])
-    while not [doc for doc in users.find({'username':username})]:
-        print('Sorry, that username doesn\'t exist.')
-        username = input('\nPlease enter a valid username or press enter to skip: ').strip()
-        if not username:
-            raise SystemExit
-        
-    print(username)
-
-    id = events.insert_one(event)
+    id = events.insert_one(event_info)
     return f'''\nEvent was succesfully created. Here is the event id: {id.inserted_id}. Store 
 it somewhere, because you\'ll need it to edit or delete your event.'''
 
@@ -291,13 +278,13 @@ Avoid nested objects, and make all the keys and values strings only.
 
     sliced_response = response[response.find('{'):response.rfind('}')+1]
     if not sliced_response:
-        logging.info(f'Response for editing event (unsliced): {response}')
+        logger.info(f'Response for editing event (unsliced): {response}')
         return 'Sorry, something went wrong, please try again.'
 
     try:
         response = json.loads(sliced_response)
     except json.decoder.JSONDecodeError:
-        logging.info(f'Response for editing event (unsliced): {response}')
+        logger.info(f'Response for editing event (unsliced): {response}')
         return 'Sorry, something went wrong, please try again'
     
     list_keys = ['event name','event description','location','date','start time', 'end time', 'food options',
