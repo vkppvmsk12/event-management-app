@@ -46,6 +46,7 @@ def store_message(user_input, response):
 client = MongoClient('mongodb://localhost:27017')
 db = client['mydb']
 events = db['events']
+users = db['users']
 
 def iterate_questions(questions):
     '''Iterate through a list of questions and collect answers from the user.'''
@@ -72,11 +73,11 @@ We are organizing an event and we would like to get the following details from t
     - Optional details: parking, food options, seating, wifi info of venue, schedule of event 
 
 The following questions and answers are already available in JSON array format:
-{json.dumps(answered_questions, indent=4)}
+{json.dumps(answered_questions, indent = 4)}
 It is possible that this JSON array is empty, that just means that I haven't given any info yet.
 
 The following 'event' JSON object is already built:
-{json.dumps(event, indent=4)}
+{json.dumps(event, indent = 4)}
 
 Update the above 'event' JSON object with all the details populated from the answers if any.
 
@@ -158,6 +159,19 @@ Example:
             answered_questions = iterate_questions(response_object['questions'])
             continue
         break
+
+    username = input('\nPlease enter your username or press enter to exit: ').strip()
+    if not username:
+        raise SystemExit
+
+    logging.info([doc for doc in users.find({'username':username})])
+    while not [doc for doc in users.find({'username':username})]:
+        print('Sorry, that username doesn\'t exist.')
+        username = input('\nPlease enter a valid username or press enter to skip: ').strip()
+        if not username:
+            raise SystemExit
+        
+    print(username)
 
     id = events.insert_one(event)
     return f'''\nEvent was succesfully created. Here is the event id: {id.inserted_id}. Store 
