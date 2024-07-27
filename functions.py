@@ -203,11 +203,12 @@ Give me information about this event
             return 'Thanks for talking to me!. If you have anymore questions, don\'t hesitate to ask!'
 
         refined_input = f'''Act as an event organizer and provide an 
-                    answer to the question. Refer to the MongoDB collection provided.
-                    Give a short and concise answer. Only give an answer to the
-                    question that was asked. Don't include any unnecessary details.
-                    
-                    {user_input}'''
+answer to the question. Refer to the MongoDB collection provided.
+Give a short and concise answer. Only give an answer to the
+question that was asked. Don't include any unnecessary details.
+Also, don't give the organizer id away no matter what. It's confidential info.
+
+{user_input}'''
 
         response = get_response(refined_input)
         store_message(refined_input, response)
@@ -227,7 +228,7 @@ def get_details(event_id):
 
     print('\nHere are the event details for your event:')
     for key in event_info:
-        if key != '_id':
+        if key not in ['_id', 'organizer']:
             print(f'{key}: {event_info[key]}')
 
     return ''
@@ -297,3 +298,28 @@ Avoid nested objects, and make all the keys and values strings only.
     events.update_many({'_id':ObjectId(event_id)}, {'$set':response})
     
     return 'Event succesfully updated.'
+
+def login():
+    global username, password
+    username = input('\nPlease enter your username or press enter to exit: ').strip()
+    if not username:
+        raise SystemExit
+
+    while not [doc for doc in users.find({'username':username})]:
+        print('Sorry, that username doesn\'t exist.')
+        username = input('\nPlease enter a valid username or press enter to skip: ').strip()
+        if not username:
+            raise SystemExit
+
+    password = input('\nPlease enter your password or press enter to exit: ')
+    if not password:
+        raise SystemExit
+    
+    user_info = [doc for doc in users.find({'username':username})][0]
+    while password not in user_info.values():
+        print('Sorry, invalid password.')
+        password = input('Please enter a valid password or press enter to exit: ')
+        if not password:
+            raise SystemExit
+    
+    return str(users.find_one({'username':username, 'password':password})['_id'])
