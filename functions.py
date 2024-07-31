@@ -259,7 +259,7 @@ def edit_event(event_id, wrong_details):
 The organizer of an event has made a mistake while entering a detail for this event.
 
 Here are the original event details for context:
-{[doc for doc in events.find({'_id':ObjectId(event_id)},{'_id':0})][0]}
+{events.find_one({'_id':ObjectId(event_id)},{'_id':0})}
 
 The organizer would like to update the following details: 
 {wrong_details}
@@ -283,7 +283,8 @@ then your response should be:
     "end time": "8pm"
 }'''}
 
-Avoid nested objects, and make all the keys and values strings only.
+Avoid nested objects (except for the list of invited attendees for which the value should be an array), 
+and make all the keys and values strings only (except for list of attendees which should be an array).
 '''
 
     response = get_json_object_response(prompt)
@@ -301,7 +302,7 @@ Avoid nested objects, and make all the keys and values strings only.
         return 'Sorry, something went wrong, please try again'
     
     list_keys = ['event name','event description','location','date','start time', 'end time', 'food options',
-    'contact info of organizer','parking', 'seating','wifi info of venue', 'schedule of event']
+    'contact info of organizer','parking', 'seating','wifi info of venue', 'schedule of event', 'attendees']
     
     for key in response:
         if key.strip() not in list_keys: 
