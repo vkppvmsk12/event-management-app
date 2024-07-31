@@ -160,6 +160,18 @@ Example:
             continue
         break
 
+    attendees = []
+    while True:
+        attendee = input('Please enter the usernames of the attendees for your event or press enter to stop. ').strip()
+        if not attendee:
+            break
+            
+        if not users.find_one({'username':attendee}):
+            print('Sorry, this user doesn\'t exist. Please enter a valid username')
+            continue
+        attendees.append(attendee)
+    event_info['attendees'] = attendees
+
     id = events.insert_one(event_info)
     return f'''\nEvent was succesfully created. Here is the event id: {id.inserted_id}. Store 
 it somewhere, because you\'ll need it to edit or delete your event.'''
