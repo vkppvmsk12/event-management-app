@@ -277,7 +277,7 @@ def edit_event():
     
     wrong_details = input("What do you want to change about the event? ")
     
-    prompt=f"""
+    prompt = f"""
 The organizer of an event has made a mistake while entering a detail for this event.
 
 Here are the original event details for context:
@@ -330,11 +330,15 @@ and make all the keys and values strings only (except for list of attendees whic
         if key.strip() not in list_keys: 
             return "Sorry, something went wrong, please try again."
     
-    for attendee in response.get("attendees", []):
+    attendees = response.get("attendees", [])[:]
+    for attendee in attendees:
         is_user = False
+        print(is_user)
         for user in users.find():
+            print(attendee)
             if attendee.strip() == user.get("username"):
                 is_user = True
+        print(is_user)
         if not is_user:
             response.get("attendees", []).remove(attendee)
             print(f"\n{attendee} was removed because this user doesn't exist")
