@@ -1,59 +1,57 @@
 from bson.objectid import ObjectId
-import logging
-import json
-from bson.errors import InvalidId
+from json import dumps, loads
 from pymongo import MongoClient
 from openai import OpenAI
 from os import getenv
 from dotenv import load_dotenv
-
-logger = logging.getLogger(__name__)
-handler = logging.FileHandler("organizer.log")
-formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-logger.setLevel(logging.DEBUG)
+from json.decoder import JSONDecodeError
 
 client = MongoClient("mongodb://localhost:27017")
 db = client["event-management-app"]
 users = db["users"]
 events = db["events"]
 
+conversation_history = []
+
 def main():
     """Handle actions for event organizers."""
 
-    global user_id
+    global user_id, api
     user_id = login()
 
-    choice = input("""\nDo you want to create, delete, or edit an event? 
-Answer with create/edit/delete, otherwise press enter to exit. """).strip().lower()
+    load_dotenv(".env")
+    api = OpenAI(api_key = getenv("API_KEY"))
+    
+    choose_action()
+
+def choose_action():
+    """Allow user to choose between the actions: create, edit, delete an event."""
+
+    choice = input("\nDo you want to create, delete, or edit an event? " 
+                "Answer with create/edit/delete, otherwise press enter to exit. ").strip().lower()
     
     while choice not in ["create", "edit", "delete"]:
         if not choice:
-            raise SystemExit
+            return
         print("Sorry, this is not a valid response")
-        choice = input("""\nDo you want to create, delete, or edit an event? 
-Answer with create/edit/delete, otherwise press enter to exit. """).strip().lower()
+        choice = input("\nDo you want to create, delete, or edit an event? "
+                    "Answer with create/edit/delete, otherwise press enter to exit. ").strip().lower()
 
     if choice == "create":
-        result = create_event()
-        print(result)
-        if result.strip()[0] == "E":
-            id = result[result.index(":") + 2:result.index(". S")]
+        id = create_event()
+        try: 
+            ObjectId(id)
+        except TypeError:
             print(id)
-            get_details(id)
-
-            events.update_one({"_id":ObjectId(id)},{"$set":{"organizer":user_id}})
+            raise SystemExit
+        
+        events.update_one({"_id":ObjectId(id)},{"$set":{"organizer":user_id}})
     
     elif choice == "edit":  
         print(edit_event())
     
     elif choice == "delete":
         print(delete_event())
-
-load_dotenv(".env")
-api:str = OpenAI(api_key = getenv("API_KEY"))
-conversation_history = []
 
 def get_json_object_response(prompt):
     """Get a JSON object response from the OpenAI API for a given prompt."""
@@ -67,8 +65,9 @@ def get_json_object_response(prompt):
 
 def store_message(user_input, response):
     """Store the user input and response in the conversation history."""
+
     conversation_history.extend([
-        {"role":"user", "content":user_input},{"role":"system", "content":response}
+        {"role":"user", "content":user_input}, {"role":"system", "content":response}
     ])
 
 def iterate_questions(questions):
@@ -81,9 +80,8 @@ def iterate_questions(questions):
                 ans = None
             event_questions.append({"question":question,"answer":ans})
         return event_questions
-    except json.decoder.JSONDecodeError:
+    except JSONDecodeError:
         print("Sorry, something went wrong, please try again.")
-        logger.info(f"List of questions not answered yet: {questions}")
 
 def login():
     global username, password
@@ -106,19 +104,15 @@ def login():
         print("Sorry, invalid password.")
         password = input("Please enter a valid password or press enter to exit: ")
         if not password:
-            raise SystemExit
+            SystemExit
     
     return str(users.find_one({"username":username, "password":password})["_id"])
 
 def get_details(event_id):
     """Get an event's details."""
-    try:
-        event_id = ObjectId(event_id)
-    except InvalidId:
-        return "Sorry, invalid id."
     
     if not events.find_one({"_id": event_id}): 
-        return "This event doesn't exist"
+        return "This event doesn't exist."
     
     event_info = events.find_one({"_id":event_id})
 
@@ -127,7 +121,7 @@ def get_details(event_id):
         if key not in ["_id", "organizer"]:
             print(f"{key}: {event_info[key]}")
 
-    return ""
+    return
 
 def create_event():
     """Create a new event by collecting details from the organizer."""
@@ -140,11 +134,11 @@ We are organizing an event and we would like to get the following details from t
     - Optional details: parking, food options, seating, wifi info of venue, schedule of event 
 
 The following questions and answers are already available in JSON array format:
-{json.dumps(answered_questions, indent = 4)}
+{dumps(answered_questions, indent = 4)}
 It is possible that this JSON array is empty, that just means that I haven't given any info yet.
 
 The following 'event' JSON object is already built:
-{json.dumps(event_info, indent = 4)}
+{dumps(event_info, indent = 4)}
 
 Update the above 'event' JSON object with all the details populated from the answers if any.
 
@@ -209,13 +203,11 @@ Example:
 
         sliced_response = response[response.find("{"):response.rfind("}")+1]
         if not sliced_response:
-            logger.info(f"Response for creating event (unsliced): {response}")
             return "Sorry, something went wrong, please try again"
 
         try:
-            response_object = json.loads(sliced_response)
-        except json.decoder.JSONDecodeError:
-            logger.info(f"Response for creating event (unsliced): {response}")
+            response_object = loads(sliced_response)
+        except JSONDecodeError:
             return "Something went wrong, please try again"
         
         if response_object.get("event"):
@@ -240,15 +232,19 @@ Example:
     event_info["attendees"] = attendees
 
     id = events.insert_one(event_info)
-    return f"""\nEvent was succesfully created. Here is the event id: {id.inserted_id}. Store 
-it somewhere, because you'll need it to edit or delete your event."""
+    
+    print(f"\nEvent was succesfully created.")
+    return id.inserted_id
 
 def get_organizer_events():
+    """Shows organizer the available events."""
+
     username = users.find_one({"_id":ObjectId(user_id)}).get("username")
     organizer_events = [event.get("event name") for event in events.find() 
                         if users.find_one({"_id":ObjectId(event.get("organizer"))}).get("username") == username]
     if not organizer_events:
-        return "You don't have any events organized yet."
+        print("You don't have any events organized yet.")
+        raise SystemExit
     print("\nHere are your events:")
     for nr, event in enumerate(organizer_events, start = 1):
         print(nr, event)
@@ -260,7 +256,7 @@ def get_organizer_events():
             print("Please enter a valid event number.")
             continue
 
-        if not 0 <= event_nr <= len(organizer_events):
+        if not 1 <= event_nr <= len(organizer_events):
             print("Please enter a valid event number.")
             continue
 
@@ -271,10 +267,6 @@ def get_organizer_events():
 def edit_event():
     """Edit an existing event with the corrected details"""
     event_id = get_organizer_events()
-    print(details := get_details(event_id))
-    if details:
-        raise SystemExit
-    
     wrong_details = input("What do you want to change about the event? ")
     
     prompt = f"""
@@ -314,13 +306,11 @@ and make all the keys and values strings only (except for list of attendees whic
 
     sliced_response = response[response.find("{"):response.rfind("}")+1]
     if not sliced_response:
-        logger.info(f"Response for editing event (unsliced): {response}")
         return "Sorry, something went wrong, please try again."
 
     try:
-        response = json.loads(sliced_response)
-    except json.decoder.JSONDecodeError:
-        logger.info(f"Response for editing event (unsliced): {response}")
+        response = loads(sliced_response)
+    except JSONDecodeError:
         return "Sorry, something went wrong, please try again"
     
     list_keys = ["event name","event description","location","date","start time", "end time", "food options",
@@ -344,9 +334,9 @@ and make all the keys and values strings only (except for list of attendees whic
             print(f"\n{attendee} was removed because this user doesn't exist")
 
     events.update_many({"_id":ObjectId(event_id)}, {"$set":response})
-    print(details_after := get_details(event_id))
-    if details_after:
-        raise SystemExit
+    details = get_details(event_id)
+    if details:
+        print(details)
     
     return "Event succesfully updated."
 
@@ -356,8 +346,6 @@ def delete_event():
     event_id = get_organizer_events()
 
     details = get_details(event_id)
-    if details:
-        return "Sorry, something went wrong, please try again"
     
     confirm = input("Are you sure that you want to delete this event? This action can't be undone. "
                     "Enter yes to continue, or press enter to exit: ").strip().lower()

@@ -1,7 +1,9 @@
 import logging
-from organizer import users, events, store_message, api, login
+from organizer import users, events, store_message, login, conversation_history
 from bson.objectid import ObjectId
-from bson.errors import InvalidId
+from os import getenv
+from dotenv import load_dotenv
+from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 handler = logging.FileHandler("attendee.log")
@@ -11,29 +13,34 @@ logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
 def main():
-    """Handle actions for event attendees."""
-    
+    """Main function that uses all other functions to manage events from the attendee side."""
     global user_id
     user_id = login()
+
+    print(chat(get_attendee_event()))
+
+def get_attendee_event():
+    """Attendee chooses event to get info about."""
+    
     username = users.find_one({"_id":ObjectId(user_id)}).get("username")
     attendee_events = []
 
     for event in events.find():
         if username in event.get("attendees", []):
-            attendee_events.append(event.get("event name"))
+            attendee_events.append([event.get("event name"), event.get("organizer")])
     
     if not attendee_events:
         print("No events planned for you.")
         raise SystemExit 
 
     print("\nHere are the list of events:")
-    for nr, event_name in enumerate(attendee_events, 1):
-        print(nr, event_name)
+    for nr, info in enumerate(attendee_events, 1):
+        print(f"{nr}) name: {info[0]}, organizer: {users.find_one({"_id": ObjectId(info[1])}).get("username")}")
 
     while True:
         try:
             event_nr = int(input("\nPlease enter the number of the event "
-"that you want to attend or press enter to exit: "))
+                                "that you want to attend or press enter to exit: "))
             if not event_nr:
                 break 
         except ValueError:
@@ -43,17 +50,17 @@ def main():
         if not 1 <= event_nr <= len(attendee_events):
             print("Please enter a valid event number.")
             continue
-
         break
-
-
-    chat_id = str(events.find_one({"event name":attendee_events[event_nr - 1]}).get("_id"))
-    print(chat(chat_id))
-
-conversation_history = []
+    
+    event_id = events.find_one({"event name": attendee_events[event_nr - 1][0]}).get("_id")
+    if event_id:
+        return event_id 
 
 def get_response(prompt):
     """Get a response from the OpenAI API for a given prompt."""
+
+    load_dotenv(".env")
+    api = OpenAI(api_key = getenv("API_KEY"))
     response = api.chat.completions.create(
         messages = [*conversation_history, {"role":"user","content":prompt}],
         model = "gpt-4o",
@@ -73,7 +80,6 @@ Here is the event info:
 {events.find_one({"_id":ObjectId(id)})}
 Give me information about this event.
 """
-    conversation_history.append({"role":"user","content":prompt})
     
     while True:
         user_input = input("User: ")
