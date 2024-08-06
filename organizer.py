@@ -57,7 +57,7 @@ def get_json_object_response(prompt):
     """Get a JSON object response from the OpenAI API for a given prompt."""
     response = api.chat.completions.create(
         messages = [*conversation_history,{"role":"user","content":prompt}],
-        model = "gpt-4o",
+        model = "gpt-4o-2024-08-06",
         temperature = 0.3,
         response_format = {"type":"json_object"}
     )

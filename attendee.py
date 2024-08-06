@@ -63,7 +63,7 @@ def get_response(prompt):
     api = OpenAI(api_key = getenv("API_KEY"))
     response = api.chat.completions.create(
         messages = [*conversation_history, {"role":"user","content":prompt}],
-        model = "gpt-4o",
+        model = "gpt-4o-2024-08-06",
         temperature = 0.3
     )
     output = response.choices[0].message.content.strip()
