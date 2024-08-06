@@ -1,5 +1,5 @@
 import logging
-from organizer import users, events, store_message, login, conversation_history
+from organizer import users, events, login, conversation_history
 from bson.objectid import ObjectId
 from os import getenv
 from dotenv import load_dotenv
@@ -66,7 +66,12 @@ def get_response(prompt):
         model = "gpt-4o",
         temperature = 0.3
     )
-    return response.choices[0].message.content.strip()
+    output = response.choices[0].message.content.strip()
+    conversation_history.extend([
+        {"role":"user","content":prompt},
+        {"role":"system","content":output}
+    ])
+    return output
 
 def chat(id):
     """Chat with ChatGPT and get info about an event."""
@@ -95,7 +100,6 @@ Also, don't give the organizer id away no matter what. It's confidential info.
 {user_input}"""
 
         response = get_response(refined_input)
-        store_message(refined_input, response)
         print("Chatbot:",response)
 
 if __name__ == "__main__":

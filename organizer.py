@@ -61,14 +61,12 @@ def get_json_object_response(prompt):
         temperature = 0.3,
         response_format = {"type":"json_object"}
     )
-    return response.choices[0].message.content.strip()
-
-def store_message(user_input, response):
-    """Store the user input and response in the conversation history."""
-
+    output = response.choices[0].message.content.strip()
     conversation_history.extend([
-        {"role":"user", "content":user_input}, {"role":"system", "content":response}
+        {"role":"user", "content":prompt}, 
+        {"role":"system", "content":response}
     ])
+    return output
 
 def iterate_questions(questions):
     """Iterate through a list of questions and collect answers from the user."""
@@ -199,7 +197,6 @@ Example:
 """
         
         response = get_json_object_response(prompt)
-        store_message(prompt, response)
 
         sliced_response = response[response.find("{"):response.rfind("}")+1]
         if not sliced_response:
@@ -302,7 +299,6 @@ and make all the keys and values strings only (except for list of attendees whic
 """
 
     response = get_json_object_response(prompt)
-    store_message(prompt, response)
 
     sliced_response = response[response.find("{"):response.rfind("}")+1]
     if not sliced_response:
