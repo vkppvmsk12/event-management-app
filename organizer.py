@@ -123,6 +123,7 @@ def get_details(event_id):
 
 def create_event():
     """Create a new event by collecting details from the organizer."""
+
     answered_questions = {}
     event_info = {}
     while True:
@@ -218,12 +219,12 @@ Example:
 
     attendees = []
     while True:
-        attendee = input("\nPlease enter the usernames of the attendees for your event or press enter to stop. ").strip()
+        attendee = input("\nPlease enter the e-mails of the attendees for your event or press enter to stop. ").strip()
         if not attendee:
             break
             
-        if not users.find_one({"username":attendee}):
-            print("Sorry, this user doesn't exist. Please enter a valid username.")
+        if not users.find_one({"email":attendee}):
+            print("Sorry, this user doesn't exist. Please enter a valid email.")
             continue
         attendees.append(attendee)
     event_info["attendees"] = attendees
@@ -263,6 +264,7 @@ def get_organizer_events():
 
 def edit_event():
     """Edit an existing event with the corrected details"""
+
     event_id = get_organizer_events()
     wrong_details = input("What do you want to change about the event? ")
     
@@ -319,12 +321,10 @@ and make all the keys and values strings only (except for list of attendees whic
     attendees = response.get("attendees", [])[:]
     for attendee in attendees:
         is_user = False
-        print(is_user)
         for user in users.find():
             print(attendee)
-            if attendee.strip() == user.get("username"):
+            if attendee.strip() == user.get("email"):
                 is_user = True
-        print(is_user)
         if not is_user:
             response.get("attendees", []).remove(attendee)
             print(f"\n{attendee} was removed because this user doesn't exist")
