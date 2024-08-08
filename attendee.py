@@ -1,16 +1,8 @@
-import logging
 from organizer import users, events, login, conversation_history
 from bson.objectid import ObjectId
 from os import getenv
 from dotenv import load_dotenv
 from openai import OpenAI
-
-logger = logging.getLogger(__name__)
-handler = logging.FileHandler("attendee.log")
-formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-logger.setLevel(logging.DEBUG)
 
 def main():
     """Main function that uses all other functions to manage events from the attendee side."""
