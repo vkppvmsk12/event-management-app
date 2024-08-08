@@ -4,7 +4,6 @@ from os import getenv
 from dotenv import load_dotenv
 from organizer import events, users
 from bson.objectid import ObjectId
-from pymongo import MongoClient
 
 def main():    
     """Main function which runs all other functions"""
