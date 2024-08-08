@@ -14,11 +14,11 @@ def main():
 def get_attendee_event():
     """Attendee chooses event to get info about."""
     
-    username = users.find_one({"_id":ObjectId(user_id)}).get("username")
+    email = users.find_one({"_id":ObjectId(user_id)}).get("email")
     attendee_events = []
 
     for event in events.find():
-        if username in event.get("attendees", []):
+        if email in event.get("attendees", []):
             attendee_events.append([event.get("event name"), event.get("organizer")])
     
     if not attendee_events:
