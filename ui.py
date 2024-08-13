@@ -5,12 +5,32 @@ from dotenv import load_dotenv
 from organizer import events, users
 from bson.objectid import ObjectId
 from streamlit import session_state as ss, chat_message as msg, markdown as md, chat_input as inp
+import logging
 
 def main():    
     """Main function which runs all other functions"""
+    setup_logging()
     init_chat_history()
     display()
     chat(get_attendee_events('66b1729026d2550a25e8a671'))
+
+def setup_logging():
+    """Setting up logging for the website. Logging happens into the console"""
+
+    # Create a logger
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+
+    # Create a handler and set its level to DEBUG
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.DEBUG)
+
+    # Create a formatter and set it for the console handler
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    handler.setFormatter(formatter)
+
+    # Add the console handler to the logger
+    logger.addHandler(handler)
 
 def get_response(prompt):
     """Getting response from ChatGPT"""
