@@ -18,7 +18,7 @@ def setup_logging():
     """Setting up logging for the website. Logging happens into the console"""
 
     # Create a logger
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
 
     # Create a handler and set its level to DEBUG
@@ -68,6 +68,8 @@ def display():
             md(message["content"])
 
 def get_attendee_events(user_id):
+    logger = logging.getLogger(__name__)
+
     if "error_msg" not in ss:
         ss.error_msg = True
 
@@ -109,6 +111,7 @@ def get_attendee_events(user_id):
                     ss.error_msg = None
             except Exception as e:
                 ss.error_msg = f"Error: {e}"
+            logger.info(str(ss.error_msg))
         
         if ss.error_msg is not True:
             with msg("assistant"):
